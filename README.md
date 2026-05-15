@@ -17,11 +17,11 @@
 
 
 #### back
-&nbsp;&nbsp; pip install -r requirements.txt
+&nbsp;&nbsp; `pip install -r requirements.txt`
 
-&nbsp;&nbsp; uvicorn app.main:app --reload
+&nbsp;&nbsp; `uvicorn app.main:app --reload`
 
 
 #### db
-docker run --name postgres-db -e POSTGRES_USER=test -e POSTGRES_PASSWORD=qwer1234 -e POSTGRES_DB=test -p 5432:5432 -d postgres:17
+`docker run --name postgres-db -e POSTGRES_USER=test -e POSTGRES_PASSWORD=qwer1234 -e POSTGRES_DB=test -p 5432:5432 -d postgres:17`
 
