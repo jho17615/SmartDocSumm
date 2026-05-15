@@ -1,17 +1,24 @@
 from fastapi import FastAPI                             #0
-from app.core.database import Base, engine              #1
-from app.model import user                              #1
+from app.db.database import Base, engine              #1
+from app.db.models import User                              #1
 from pydantic import BaseModel                          #2
 from sqlalchemy.orm import Session                      #3
 from fastapi import Depends                             #3
 from app.services import auth_service                   #3
-from app.core.database import get_db                    #3
+from app.db.database import get_db                    #3
 from fastapi.security import OAuth2PasswordRequestForm  #4
-from backend.app.api import ocr
+#from app.api import ocr
+from fastapi.middleware.cors import CORSMiddleware
 
 #0
 app = FastAPI(title="문서 요약 및 검색 서비스 API")
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 모든 곳에서 접속 허용 (개발 단계)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 #1
 Base.metadata.create_all(bind=engine)
 
@@ -20,7 +27,7 @@ class RegisterRequest(BaseModel):
     user_id: str
     user_pw: str
       
-app.include_router(ocr.router)
+#app.include_router(ocr.router)
 
 #3 :: 회원가입 :: #2에서 변환한 데이터를 auth_service로 전송, 세션+
 @app.post("/user/join")
