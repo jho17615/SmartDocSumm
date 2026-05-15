@@ -1,0 +1,28 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# 환경변수 (API 키 등) 
+.env
+
+# 파일 업로드 테스트용 임시 폴더 
+uploads/
+
+# VS Code 등 에디터 설정 파일 무시
+.vscode/
+.idea/
+
+
+node_modules/
+.env
+__pycache__/
+venv/
+*.sqlite
+.vite/
