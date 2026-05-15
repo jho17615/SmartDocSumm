@@ -22,6 +22,3 @@
 &nbsp;&nbsp; `uvicorn app.main:app --reload`
 
 
-#### db
-`docker run --name postgres-db -e POSTGRES_USER=test -e POSTGRES_PASSWORD=qwer1234 -e POSTGRES_DB=test -p 5432:5432 -d postgres:17`
-
