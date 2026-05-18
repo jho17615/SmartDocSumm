@@ -6,6 +6,7 @@ uvicorn[standard]
 sqlalchemy
 pymysql
 alembic
+pydantic-settings
 
 # Security & Auth
 python-jose[cryptography]
@@ -25,3 +26,7 @@ langchain
 
 # Development & Cross-Origin
 flask-cors # (필요시)
+httpx
+pytest
+pytest-asyncio
+pydantic

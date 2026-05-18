@@ -3,17 +3,25 @@ from sqlalchemy.orm import relationship
 from datetime import datetime, timezone, timedelta
 from app.db.database import Base
 
+# 한국 시간 (KST) 설정
 KST = timezone(timedelta(hours=9))
 
-class User(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String(50), unique=True, index=True, nullable=False)
-    user_pw = Column(String(255), nullable=False) # 해싱된 비밀번호 저장
-    created_at = Column(DateTime, default=lambda: datetime.now(KST))
+def get_now():
+    # 한국 시간 (KST) 기준 현재 시간 반환
+    return datetime.now(KST)
 
-    # 관계 설정: 유저가 가진 문서들
-    documents = relationship("Document", back_populates="owner")
+class User(Base):
+    __tablename__ = 'users'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(50), nullable=False)
+    email = Column(String(20), unique=True, nullable=False)
+    password = Column(String(255), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=get_now, nullable=False)
+    updated_at = Column(DateTime, default=get_now, onupdate=get_now, nullable=False)
+
+    documents = relationship('Document', back_populates='owner', lazy=True)
 
 class Document(Base):
     __tablename__ = "documents"
@@ -21,7 +29,7 @@ class Document(Base):
     owner_id = Column(Integer, ForeignKey("users.id"))
     title = Column(String(500), nullable=False)
     is_deleted = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(KST))
+    created_at = Column(DateTime, default=get_now)
 
     owner = relationship("User", back_populates="documents")
     summaries = relationship("Summary", back_populates="document")
@@ -31,6 +39,6 @@ class Summary(Base):
     id = Column(Integer, primary_key=True, index=True)
     document_id = Column(Integer, ForeignKey("documents.id"))
     content = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(KST))
+    created_at = Column(DateTime, default=get_now)
 
     document = relationship("Document", back_populates="summaries")
