@@ -1,79 +1,42 @@
 import { useState, useEffect } from "react";
 import { User, Mail, Lock } from "lucide-react";
 import "../../styles/auth.css";
-import { signupAPI, loginApi } from "../api/auth";
 
 interface AuthPageProps {
-  onLogin: () => Promise<void>;
+  onLogin: (email: string, password: string) => void;
   onSignup: (email: string, password: string, name: string) => void;
 }
 
 export function AuthPage({ onLogin, onSignup }: AuthPageProps) {
-  const [isSignIn, setIsSignIn] = useState(false);
+  const [isSignIn, setIsSignIn] = useState(true); // ✅ 처음에 Sign In 모드 (true)
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
   const [signUpName, setSignUpName] = useState("");
   const [signUpEmail, setSignUpEmail] = useState("");
   const [signUpPassword, setSignUpPassword] = useState("");
   const [signUpConfirmPassword, setSignUpConfirmPassword] = useState("");
-  const [loading, setLoading] = useState(false);  // 로딩 상태
-  const [error, setError] = useState("");          // 에러 메시지
 
-  useEffect(() => {
-    setTimeout(() => setIsSignIn(true), 200);
-  }, []);
-
-  const toggle = () => setIsSignIn(!isSignIn);
-
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    try {
-      // ✅ 로그인 요청 (서버가 쿠키에 토큰 저장)
-      await loginApi(signInEmail, signInPassword);
-
-      // ✅ localStorage 저장 제거
-      // ✅ onLogin은 인자 없이 호출
-      await onLogin();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+  const toggle = () => {
+    setIsSignIn(!isSignIn);
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleSignIn = (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    onLogin(signInEmail, signInPassword);
+  };
 
+  const handleSignUp = (e: React.FormEvent) => {
+    e.preventDefault();
     if (signUpPassword !== signUpConfirmPassword) {
-      setError("비밀번호가 일치하지 않습니다");
+      alert("비밀번호가 일치하지 않습니다");
       return;
     }
-
-    setLoading(true);
-    try {
-      // signupAPI(email, password, name) 순서 맞는지 확인
-      await signupAPI(signUpEmail, signUpPassword, signUpName);
-      alert("회원가입 성공! 로그인해주세요.");
-      setIsSignIn(true);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    onSignup(signUpEmail, signUpPassword, signUpName);
   };
 
   return (
     <div className={`auth-container ${isSignIn ? "sign-in" : "sign-up"}`}>
-      {/* 에러 메시지 */}
-      {error && (
-        <div style={{ color: "red", textAlign: "center", padding: "8px" }}>
-          {error}
-        </div>
-      )}
-
+      {/* FORM SECTION */}
       <div className="auth-row">
         {/* SIGN UP */}
         <div className="auth-col auth-align-items-center auth-flex-col sign-up">
@@ -119,16 +82,17 @@ export function AuthPage({ onLogin, onSignup }: AuthPageProps) {
                   required
                 />
               </div>
-              <button type="submit" disabled={loading}>
-                {loading ? "처리중..." : "Sign up"}
-              </button>
+              <button type="submit">Sign up</button>
               <p>
                 <span>Already have an account? </span>
-                <b onClick={toggle} className="auth-pointer">Sign in here</b>
+                <b onClick={toggle} className="auth-pointer">
+                  Sign in here
+                </b>
               </p>
             </form>
           </div>
         </div>
+        {/* END SIGN UP */}
 
         {/* SIGN IN */}
         <div className="auth-col auth-align-items-center auth-flex-col sign-in">
@@ -138,7 +102,7 @@ export function AuthPage({ onLogin, onSignup }: AuthPageProps) {
                 <User />
                 <input
                   type="text"
-                  placeholder="Email"
+                  placeholder="Username or Email"
                   value={signInEmail}
                   onChange={(e) => setSignInEmail(e.target.value)}
                   required
@@ -154,34 +118,35 @@ export function AuthPage({ onLogin, onSignup }: AuthPageProps) {
                   required
                 />
               </div>
-              <button type="submit" disabled={loading}>
-                {loading ? "처리중..." : "Sign in"}
-              </button>
+              <button type="submit">Sign in</button>
               <p>
                 <b className="auth-pointer">Forgot password?</b>
               </p>
               <p>
                 <span>Don't have an account? </span>
-                <b onClick={toggle} className="auth-pointer">Sign up here</b>
+                <b onClick={toggle} className="auth-pointer">
+                  Sign up here
+                </b>
               </p>
             </form>
           </div>
         </div>
+        {/* END SIGN IN */}
       </div>
+      {/* END FORM SECTION */}
 
-      {/* CONTENT SECTION */}
+      {/* CONTENT SECTION - isSignIn일 때만 Welcome 표시 */}
       <div className="auth-row auth-content-row">
         <div className="auth-col auth-align-items-center auth-flex-col">
-          <div className="auth-text sign-in">
-            <h2>Welcome</h2>
-          </div>
-        </div>
-        <div className="auth-col auth-align-items-center auth-flex-col">
-          <div className="auth-text sign-up">
-            <h2>Join with us</h2>
-          </div>
+          {isSignIn && (
+            <div className="auth-text">
+              <h2>Welcome</h2>
+              <p>Please sign in to continue</p>
+            </div>
+          )}
         </div>
       </div>
+      {/* END CONTENT SECTION */}
     </div>
   );
 }

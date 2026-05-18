@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@200;300;400;500;600;800&display=swap');
+
 :root {
     --primary-color: #1e3a8a;
     --secondary-color: #2563eb;
@@ -7,8 +9,6 @@
     --gray: #f8fafc;
     --gray-2: #64748b;
 }
-
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@200;300;400;500;600;800&display=swap');
 
 .auth-container {
     position: relative;
@@ -124,6 +124,7 @@
     width: 100%;
 }
 
+/* ✅ Welcome 텍스트만 표시 */
 .auth-text {
     margin: 4rem;
     color: var(--white);
@@ -133,38 +134,46 @@
     font-size: 3.5rem;
     font-weight: 800;
     margin: 2rem 0;
-    transition: 1s ease-in-out;
     background: linear-gradient(135deg, #ffffff 0%, #d4af37 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    
+    /* 🎨 애니메이션 효과 */
+    animation: fadeInScale 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 .auth-text p {
     font-weight: 600;
-    transition: 1s ease-in-out;
-    transition-delay: .2s;
+    animation: slideUp 0.6s ease-out 0.3s forwards;
+    opacity: 0;
+    transform: translateY(20px);
 }
 
-.auth-text.sign-in h2,
-.auth-text.sign-in p {
-    transform: translateX(-250%);
+/* 🎨 애니메이션 키프레임 */
+@keyframes fadeInScale {
+    0% {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
-.auth-text.sign-up h2,
-.auth-text.sign-up p {
-    transform: translateX(250%);
-}
-
-.auth-container.sign-in .auth-text.sign-in h2,
-.auth-container.sign-in .auth-text.sign-in p,
-.auth-container.sign-up .auth-text.sign-up h2,
-.auth-container.sign-up .auth-text.sign-up p {
-    transform: translateX(0);
+@keyframes slideUp {
+    0% {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* BACKGROUND */
-
 .auth-container::before {
     content: "";
     position: absolute;
@@ -192,9 +201,7 @@
 }
 
 /* RESPONSIVE */
-
 @media only screen and (max-width: 425px) {
-
     .auth-container::before,
     .auth-container.sign-in::before,
     .auth-container.sign-up::before {

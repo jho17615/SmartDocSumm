@@ -397,6 +397,7 @@ def process_hwp(hwp_path, output_folder=None):
     print("\n[1/3] 텍스트 추출 중...")
     body_text, shape_text = extract_text(ole, is_compressed)
     body_text = clean_hwp_text(body_text)
+    shape_text = clean_hwp_text(shape_text)
     
     # ── 이미지 추출
     print("[2/3] 이미지 추출 중...")
