@@ -8,19 +8,13 @@ interface AuthPageProps {
 }
 
 export function AuthPage({ onLogin, onSignup }: AuthPageProps) {
-  const [isSignIn, setIsSignIn] = useState(false);
+  const [isSignIn, setIsSignIn] = useState(true); // ✅ 처음에 Sign In 모드 (true)
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
   const [signUpName, setSignUpName] = useState("");
   const [signUpEmail, setSignUpEmail] = useState("");
   const [signUpPassword, setSignUpPassword] = useState("");
   const [signUpConfirmPassword, setSignUpConfirmPassword] = useState("");
-
-  useEffect(() => {
-    setTimeout(() => {
-      setIsSignIn(true);
-    }, 200);
-  }, []);
 
   const toggle = () => {
     setIsSignIn(!isSignIn);
@@ -141,23 +135,16 @@ export function AuthPage({ onLogin, onSignup }: AuthPageProps) {
       </div>
       {/* END FORM SECTION */}
 
-      {/* CONTENT SECTION */}
+      {/* CONTENT SECTION - isSignIn일 때만 Welcome 표시 */}
       <div className="auth-row auth-content-row">
-        {/* SIGN IN CONTENT */}
         <div className="auth-col auth-align-items-center auth-flex-col">
-          <div className="auth-text sign-in">
-            <h2>Welcome</h2>
-          </div>
+          {isSignIn && (
+            <div className="auth-text">
+              <h2>Welcome</h2>
+              <p>Please sign in to continue</p>
+            </div>
+          )}
         </div>
-        {/* END SIGN IN CONTENT */}
-
-        {/* SIGN UP CONTENT */}
-        <div className="auth-col auth-align-items-center auth-flex-col">
-          <div className="auth-text sign-up">
-            <h2>Join with us</h2>
-          </div>
-        </div>
-        {/* END SIGN UP CONTENT */}
       </div>
       {/* END CONTENT SECTION */}
     </div>
