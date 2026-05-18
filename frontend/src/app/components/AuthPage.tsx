@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { User, Mail, Lock } from "lucide-react";
 import "../../styles/auth.css";
+import { signupAPI, loginApi } from "../api/auth";
 
 interface AuthPageProps {
-  onLogin: (email: string, password: string) => void;
+  onLogin: () => Promise<void>;
   onSignup: (email: string, password: string, name: string) => void;
 }
 
@@ -15,27 +16,61 @@ export function AuthPage({ onLogin, onSignup }: AuthPageProps) {
   const [signUpEmail, setSignUpEmail] = useState("");
   const [signUpPassword, setSignUpPassword] = useState("");
   const [signUpConfirmPassword, setSignUpConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);  // 로딩 상태
+  const [error, setError] = useState("");          // 에러 메시지
 
-  const toggle = () => {
-    setIsSignIn(!isSignIn);
+  useEffect(() => {
+    setTimeout(() => setIsSignIn(true), 200);
+  }, []);
+
+  const toggle = () => setIsSignIn(!isSignIn);
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      await loginApi({ email: signInEmail, password: signInPassword });
+      await onLogin();
+    } catch (err: any) {
+      setError(err.message || "로그인에 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSignIn = (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin(signInEmail, signInPassword);
-  };
+    setError("");
 
-  const handleSignUp = (e: React.FormEvent) => {
-    e.preventDefault();
     if (signUpPassword !== signUpConfirmPassword) {
-      alert("비밀번호가 일치하지 않습니다");
+      setError("비밀번호가 일치하지 않습니다");
       return;
     }
-    onSignup(signUpEmail, signUpPassword, signUpName);
+
+    setLoading(true);
+    try {
+      // signupAPI(email, password, name) 순서 맞는지 확인
+      await signupAPI(signUpEmail, signUpPassword, signUpName);
+      alert("회원가입 성공! 로그인해주세요.");
+      setIsSignIn(true);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className={`auth-container ${isSignIn ? "sign-in" : "sign-up"}`}>
+      {/* 에러 메시지 */}
+      {error && (
+        <div style={{ color: "red", textAlign: "center", padding: "8px" }}>
+          {error}
+        </div>
+      )}
+
+
       {/* FORM SECTION */}
       <div className="auth-row">
         {/* SIGN UP */}
@@ -82,12 +117,12 @@ export function AuthPage({ onLogin, onSignup }: AuthPageProps) {
                   required
                 />
               </div>
-              <button type="submit">Sign up</button>
+              <button type="submit" disabled={loading}>
+                {loading ? "처리중..." : "Sign up"}
+              </button>
               <p>
                 <span>Already have an account? </span>
-                <b onClick={toggle} className="auth-pointer">
-                  Sign in here
-                </b>
+                <b onClick={toggle} className="auth-pointer">Sign in here</b>
               </p>
             </form>
           </div>
@@ -118,7 +153,9 @@ export function AuthPage({ onLogin, onSignup }: AuthPageProps) {
                   required
                 />
               </div>
-              <button type="submit">Sign in</button>
+              <button type="submit" disabled={loading}>
+                {loading ? "처리중..." : "Sign in"}
+              </button>
               <p>
                 <b className="auth-pointer">Forgot password?</b>
               </p>
@@ -147,6 +184,6 @@ export function AuthPage({ onLogin, onSignup }: AuthPageProps) {
         </div>
       </div>
       {/* END CONTENT SECTION */}
-    </div>
+    </div >
   );
 }
