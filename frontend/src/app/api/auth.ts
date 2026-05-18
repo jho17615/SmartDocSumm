@@ -34,22 +34,25 @@ export async function getMeAPI() {
 
 
 
-export async function loginApi(email: string, password: string) {
+export async function loginApi(data: LoginRequest): Promise<void> {
     const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",  // ✅ 쿠키로 토큰 저장
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(data),
+        credentials: "include", // 쿠키 수신을 위해 필수
     });
-    if (!response.ok) throw new Error("로그인에 실패했습니다.");
-    return response.json();
+
+    const result = await response.json();
+
+    if (!response.ok) {
+        throw new Error(result.detail || "로그인에 실패했습니다.");
+    }
+
 }
 
-export async function logoutAPI() {
-    const response = await fetch("/api/auth/logout", {
+export async function logoutApi(): Promise<void> {
+    await fetch("/api/auth/logout", {
         method: "POST",
-        credentials: "include",  // ✅ 쿠키 전송
+        credentials: "include", // 쿠키 전송을 위해 필수
     });
-    if (!response.ok) throw new Error("로그아웃에 실패했습니다.");
-    return response.json();
 }
