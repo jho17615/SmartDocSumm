@@ -1,186 +1,110 @@
-import { useState, useEffect } from "react";
-import { User, Mail, Lock } from "lucide-react";
-import "../../styles/auth.css";
-import { signupAPI, loginApi } from "../api/auth";
+import { useState } from "react";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 
-interface AuthPageProps {
-  onLogin: () => Promise<void>;  // ✅ 이메일/비밀번호 제거 (쿠키 방식)
+interface SignupPageProps {
   onSignup: (email: string, password: string, name: string) => void;
+  onSwitchToLogin: () => void;
 }
 
-export function AuthPage({ onLogin, onSignup }: AuthPageProps) {
-  const [isSignIn, setIsSignIn] = useState(false);
-  const [signInEmail, setSignInEmail] = useState("");
-  const [signInPassword, setSignInPassword] = useState("");
-  const [signUpName, setSignUpName] = useState("");
-  const [signUpEmail, setSignUpEmail] = useState("");
-  const [signUpPassword, setSignUpPassword] = useState("");
-  const [signUpConfirmPassword, setSignUpConfirmPassword] = useState("");
-  const [loading, setLoading] = useState(false);  // 로딩 상태
-  const [error, setError] = useState("");          // 에러 메시지
+export function SignupPage({ onSignup, onSwitchToLogin }: SignupPageProps) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [name, setName] = useState("");
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    setTimeout(() => setIsSignIn(true), 200);
-  }, []);
-
-  const toggle = () => setIsSignIn(!isSignIn);
-
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    try {
-      // ✅ 로그인 요청 (서버가 쿠키에 토큰 저장)
-      await loginApi(signInEmail, signInPassword);
-
-      // ✅ localStorage 저장 제거
-      // ✅ onLogin은 인자 없이 호출
-      await onLogin();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (signUpPassword !== signUpConfirmPassword) {
+    if (password !== confirmPassword) {
       setError("비밀번호가 일치하지 않습니다");
       return;
     }
 
-    setLoading(true);
-    try {
-      await signupAPI(signUpEmail, signUpPassword, signUpName);
-      alert("회원가입 성공! 로그인해주세요.");
-      setIsSignIn(true);  // 로그인 폼으로 이동
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+    if (password.length < 6) {
+      setError("비밀번호는 최소 6자 이상이어야 합니다");
+      return;
     }
+
+    onSignup(email, password, name);
   };
 
   return (
-    <div className={`auth-container ${isSignIn ? "sign-in" : "sign-up"}`}>
-      {/* 에러 메시지 */}
-      {error && (
-        <div style={{ color: "red", textAlign: "center", padding: "8px" }}>
-          {error}
-        </div>
-      )}
-
-      <div className="auth-row">
-        {/* SIGN UP */}
-        <div className="auth-col auth-align-items-center auth-flex-col sign-up">
-          <div className="auth-form-wrapper auth-align-items-center">
-            <form className="auth-form sign-up" onSubmit={handleSignUp}>
-              <div className="auth-input-group">
-                <User />
-                <input
-                  type="text"
-                  placeholder="Username"
-                  value={signUpName}
-                  onChange={(e) => setSignUpName(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="auth-input-group">
-                <Mail />
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={signUpEmail}
-                  onChange={(e) => setSignUpEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="auth-input-group">
-                <Lock />
-                <input
-                  type="password"
-                  placeholder="Password"
-                  value={signUpPassword}
-                  onChange={(e) => setSignUpPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="auth-input-group">
-                <Lock />
-                <input
-                  type="password"
-                  placeholder="Confirm password"
-                  value={signUpConfirmPassword}
-                  onChange={(e) => setSignUpConfirmPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <button type="submit" disabled={loading}>
-                {loading ? "처리중..." : "Sign up"}
-              </button>
-              <p>
-                <span>Already have an account? </span>
-                <b onClick={toggle} className="auth-pointer">Sign in here</b>
-              </p>
-            </form>
-          </div>
-        </div>
-
-        {/* SIGN IN */}
-        <div className="auth-col auth-align-items-center auth-flex-col sign-in">
-          <div className="auth-form-wrapper auth-align-items-center">
-            <form className="auth-form sign-in" onSubmit={handleSignIn}>
-              <div className="auth-input-group">
-                <User />
-                <input
-                  type="text"
-                  placeholder="Email"
-                  value={signInEmail}
-                  onChange={(e) => setSignInEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="auth-input-group">
-                <Lock />
-                <input
-                  type="password"
-                  placeholder="Password"
-                  value={signInPassword}
-                  onChange={(e) => setSignInPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <button type="submit" disabled={loading}>
-                {loading ? "처리중..." : "Sign in"}
-              </button>
-              <p>
-                <b className="auth-pointer">Forgot password?</b>
-              </p>
-              <p>
-                <span>Don't have an account? </span>
-                <b onClick={toggle} className="auth-pointer">Sign up here</b>
-              </p>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      {/* CONTENT SECTION */}
-      <div className="auth-row auth-content-row">
-        <div className="auth-col auth-align-items-center auth-flex-col">
-          <div className="auth-text sign-in">
-            <h2>Welcome</h2>
-          </div>
-        </div>
-        <div className="auth-col auth-align-items-center auth-flex-col">
-          <div className="auth-text sign-up">
-            <h2>Join with us</h2>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle>회원가입</CardTitle>
+          <CardDescription>PDF AI 분석 서비스에 가입하세요</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">이름</Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="홍길동"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">이메일</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="your@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">비밀번호</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">비밀번호 확인</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+              />
+            </div>
+            {error && (
+              <div className="text-sm text-destructive">{error}</div>
+            )}
+            <Button type="submit" className="w-full">
+              회원가입
+            </Button>
+            <div className="text-center">
+              <Button
+                type="button"
+                variant="link"
+                onClick={onSwitchToLogin}
+                className="text-sm"
+              >
+                이미 계정이 있으신가요? 로그인
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

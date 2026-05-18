@@ -1,29 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { Label } from "./ui/label";
-import { Progress } from "./ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Badge } from "./ui/badge";
-import { Separator } from "./ui/separator";
-import {
-  ArrowLeft,
-  FileText,
-  Sparkles,
-  BookOpen,
-  BarChart3,
-  FileSearch,
-  Loader2,
-  Upload,
-  X,
-  Scale,
-  Presentation,
-  GraduationCap,
-  FileCode,
-  Newspaper,
-  FolderOpen
-} from "lucide-react";
-import "../../styles/transitions.css";
+import { ArrowLeft, Upload, FileText, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { toast } from "sonner";
 
 interface PDFDocument {
   id: string;
@@ -34,83 +13,57 @@ interface PDFDocument {
   pageCount: number;
 }
 
+// PDFAnalyzerProps 인터페이스 수정
 interface PDFAnalyzerProps {
   onBack: () => void;
-  onAnalyzed?: (document: PDFDocument) => void;
+  onAnalyzed: (doc: PDFDocument) => void;  // ✅ 이대로 유지
+  // onAnalyzed가 문서를 받아서 상세 페이지로 바로 이동하게 할 것임
 }
 
-const categoryIcons: Record<string, any> = {
-  "법안": Scale,
-  "발표자료": Presentation,
-  "교육자료": GraduationCap,
-  "기술문서": FileCode,
-  "뉴스/기사": Newspaper,
-  "일반문서": FileText,
-  "기타": FolderOpen
-};
+interface LogEntry {
+  time: string;
+  level: "info" | "success" | "error";
+  message: string;
+}
 
-const categoryColors: Record<string, string> = {
-  "법안": "bg-red-100 text-red-800 border-red-300",
-  "발표자료": "bg-blue-100 text-blue-800 border-blue-300",
-  "교육자료": "bg-green-100 text-green-800 border-green-300",
-  "기술문서": "bg-purple-100 text-purple-800 border-purple-300",
-  "뉴스/기사": "bg-yellow-100 text-yellow-800 border-yellow-300",
-  "일반문서": "bg-gray-100 text-gray-800 border-gray-300",
-  "기타": "bg-orange-100 text-orange-800 border-orange-300"
-};
+const FASTAPI_URL = "http://127.0.0.1:8000";
 
 export function PDFAnalyzer({ onBack, onAnalyzed }: PDFAnalyzerProps) {
   const [file, setFile] = useState<File | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [analysisComplete, setAnalysisComplete] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [analysisResults, setAnalysisResults] = useState({
-    category: "기술문서",
-    confidence: 95,
-    fullSummary: "이 문서는 소프트웨어 개발 방법론에 대한 기술 문서입니다. 애자일 개발, 테스트 주도 개발(TDD), 지속적 통합(CI/CD) 등의 주제를 다루고 있습니다.",
-    pageSummaries: [
-      { page: 1, summary: "소프트웨어 개발 방법론 소개 및 전통적 방법론과 현대적 방법론의 비교" },
-      { page: 2, summary: "애자일 개발 방법론의 원칙과 스크럼, 칸반 등의 프레임워크 설명" },
-      { page: 3, summary: "테스트 주도 개발(TDD)의 개념과 실제 적용 사례" }
-    ],
-    sectionSummaries: [
-      { title: "1. 개발 방법론 개요", summary: "전통적 폭포수 모델부터 현대 애자일 방법론까지의 발전 과정" },
-      { title: "2. 애자일 실천 방법", summary: "스프린트 계획, 일일 스탠드업, 회고 등의 실천 방법" },
-      { title: "3. 품질 관리", summary: "코드 리뷰, 자동화 테스트, CI/CD 파이프라인 구축" }
-    ],
-    percentSummaries: [
-      { percent: 25, summary: "문서 초반부에서 개발 방법론의 역사와 필요성을 설명" },
-      { percent: 50, summary: "중반부에서 애자일 방법론의 핵심 개념과 실천 방법을 상세히 다룸" },
-      { percent: 75, summary: "테스트와 품질 관리에 대한 구체적인 기법과 도구 소개" },
-      { percent: 100, summary: "실제 프로젝트에 적용한 사례와 효과, 향후 발전 방향 제시" }
-    ]
-  });
-
-  const detectCategory = (fileName: string): string => {
-    const lowerName = fileName.toLowerCase();
-    if (lowerName.includes("법") || lowerName.includes("법률") || lowerName.includes("법안") || lowerName.includes("개정")) {
-      return "법안";
-    } else if (lowerName.includes("발표") || lowerName.includes("프레젠") || lowerName.includes("ppt") || lowerName.includes("슬라이드")) {
-      return "발표자료";
-    } else if (lowerName.includes("교육") || lowerName.includes("학습") || lowerName.includes("강의") || lowerName.includes("튜토리얼")) {
-      return "교육자료";
-    } else if (lowerName.includes("api") || lowerName.includes("기술") || lowerName.includes("개발") || lowerName.includes("코드")) {
-      return "기술문서";
-    } else if (lowerName.includes("뉴스") || lowerName.includes("기사") || lowerName.includes("동향") || lowerName.includes("트렌드")) {
-      return "뉴스/기사";
-    } else if (lowerName.includes("보고서") || lowerName.includes("문서")) {
-      return "일반문서";
-    }
-    return "기타";
+  const addLog = (level: LogEntry["level"], message: string) => {
+    const time = new Date().toLocaleTimeString("ko-KR", { hour12: false });
+    setLogs((prev) => [...prev, { time, level, message }]);
+    console.log(`[${time}] [${level.toUpperCase()}] ${message}`);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-      setAnalysisComplete(false);
+    console.log("🟡 handleFileChange 호출됨");
+    console.log("🟡 e.target.files:", e.target.files);
+    const selected = e.target.files?.[0];
+    if (selected) {
+      console.log("🟢 파일 선택됨:", selected.name, selected.type, selected.size);
+      setFile(selected);
+      setLogs([]);
+      addLog("info", `파일 선택됨: ${selected.name} (${(selected.size / 1024).toFixed(1)} KB)`);
+    } else {
+      console.log("🔴 selected 파일 없음");
     }
+  };
+
+  // ✅ 수정: 강제 click() 제거 (htmlFor가 자동으로 처리)
+  const handleLabelClick = (e: React.MouseEvent<HTMLLabelElement>) => {
+    console.log("🟡 label 클릭됨");
+    if (loading) {
+      console.log("🔴 loading 중이라 무시");
+      e.preventDefault();
+      return;
+    }
+    // 아무것도 하지 않음 - label의 htmlFor가 자동으로 input을 연결함
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -126,313 +79,221 @@ export function PDFAnalyzer({ onBack, onAnalyzed }: PDFAnalyzerProps) {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile && droppedFile.type === "application/pdf") {
-      setFile(droppedFile);
-      setAnalysisComplete(false);
+    console.log("🟡 드롭 이벤트:", e.dataTransfer.files);
+    const dropped = e.dataTransfer.files[0];
+    if (dropped?.type === "application/pdf") {
+      setFile(dropped);
+      setLogs([]);
+      addLog("info", `파일 드롭됨: ${dropped.name} (${(dropped.size / 1024).toFixed(1)} KB)`);
     } else {
-      alert("PDF 파일만 업로드 가능합니다.");
+      console.log("🔴 드롭 파일 타입:", dropped?.type);
+      toast.error("PDF 파일만 업로드 가능합니다.");
+      addLog("error", "PDF가 아닌 파일이 드롭됨");
     }
   };
 
-  const handleAnalyze = async () => {
+  const handleUpload = async () => {
     if (!file) return;
 
-    const category = detectCategory(file.name);
+    setLoading(true);
+    setLogs([]);
 
-    setAnalyzing(true);
-    setProgress(0);
+    try {
+      addLog("info", `업로드 시작: ${file.name}`);
+      addLog("info", `파일 크기: ${(file.size / 1024).toFixed(1)} KB`);
+      addLog("info", `요청 URL: POST ${FASTAPI_URL}/analyze-pdf`);
 
-    const progressInterval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(progressInterval);
-          return 100;
-        }
-        return prev + 10;
+      const formData = new FormData();
+      formData.append("file", file);
+
+      addLog("info", "FormData 생성 완료, fetch 요청 전송 중...");
+
+      const startTime = performance.now();
+
+      const response = await fetch(`${FASTAPI_URL}/analyze-pdf`, {
+        method: "POST",
+        body: formData,
       });
-    }, 200);
 
-    setTimeout(() => {
-      clearInterval(progressInterval);
-      setProgress(100);
-      setAnalyzing(false);
-      setAnalysisComplete(true);
+      const elapsed = (performance.now() - startTime).toFixed(0);
+      addLog("info", `서버 응답 수신: HTTP ${response.status} (${elapsed}ms)`);
 
-      setAnalysisResults({
-        ...analysisResults,
-        category: category
-      });
-    }, 2500);
-  };
+      if (!response.ok) {
+        const errText = await response.text();
+        addLog("error", `서버 오류 응답: ${errText}`);
+        throw new Error(`HTTP ${response.status}: ${errText}`);
+      }
 
-  const handleSaveDocument = () => {
-    if (file && onAnalyzed) {
-      const newDocument: PDFDocument = {
+      const data = await response.json();
+      addLog("success", "JSON 파싱 성공");
+      addLog("success", `파일명: ${data.filename}`);
+      addLog("success", `페이지 수: ${data.pages}`);
+      addLog("success", `추출 텍스트 길이: ${data.text?.length ?? 0}자`);
+      addLog("info", `텍스트 미리보기: "${data.text?.slice(0, 80)}..."`);
+
+      toast.success("FastAPI 업로드 성공!");
+
+      const newDoc: PDFDocument = {
         id: Date.now().toString(),
-        fileName: file.name,
-        category: analysisResults.category,
-        date: new Date().toISOString().split('T')[0],
-        summary: analysisResults.fullSummary,
-        pageCount: Math.floor(Math.random() * 50) + 5
+        fileName: data.filename,
+        category: "일반문서",
+        date: new Date().toISOString().split("T")[0],
+        summary: data.text?.slice(0, 100) + "..." || "텍스트 없음",
+        pageCount: data.pages,
       };
-      onAnalyzed(newDocument);
+
+      setTimeout(() => onAnalyzed(newDoc), 1000);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      addLog("error", `업로드 실패: ${msg}`);
+      console.error("🔴 업로드 에러 상세:", err);
+
+      if (msg.includes("Failed to fetch") || msg.includes("fetch")) {
+        addLog("error", "FastAPI 서버에 연결할 수 없습니다.");
+        addLog("error", `서버가 ${FASTAPI_URL} 에서 실행 중인지 확인하세요.`);
+        addLog("error", "실행 명령: uvicorn main:app --reload");
+        toast.error("서버 연결 실패 — 로그를 확인하세요");
+      } else {
+        toast.error(`업로드 실패: ${msg}`);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      {/* 헤더 */}
       <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 shadow-lg border-b border-amber-500/20">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
           <Button
             variant="ghost"
             size="sm"
             onClick={onBack}
+            disabled={loading}
             className="text-amber-200 hover:text-white hover:bg-amber-500/10"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            뒤로 가기
+            목록으로
           </Button>
           <div className="flex items-center gap-2 text-white">
-            <FileSearch className="w-6 h-6 text-amber-400" />
-            <h1 className="bg-gradient-to-r from-white to-amber-200 bg-clip-text text-transparent">PDF 분석</h1>
+            <Upload className="w-5 h-5 text-amber-400" />
+            <h1 className="bg-gradient-to-r from-white to-amber-200 bg-clip-text text-transparent">
+              새 PDF 분석
+            </h1>
           </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-8">
-        <Card className="mb-6 fade-in-scale shadow-lg border-blue-900/10 bg-white/90 backdrop-blur">
-          <CardHeader>
-            <CardTitle className="text-blue-900">PDF 파일 업로드</CardTitle>
-            <CardDescription>
-              분석할 PDF 파일을 선택하거나 드래그하여 업로드하세요
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* 드래그 앤 드롭 영역 */}
-            <div
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-lg p-8 text-center transition-all ${
-                isDragging
-                  ? "border-blue-900 bg-blue-900/10"
-                  : "border-blue-900/25 hover:border-amber-500/50 hover:bg-amber-50/30"
-              }`}
-            >
-              <Upload className={`w-12 h-12 mx-auto mb-4 ${isDragging ? "text-blue-900" : "text-blue-900/50"}`} />
-              <p className="text-sm mb-2 text-slate-600">
-                PDF 파일을 여기에 드래그하거나
-              </p>
-              <Label
-                htmlFor="pdf-file"
-                className="inline-block px-4 py-2 bg-gradient-to-r from-blue-900 to-indigo-900 text-white rounded-md cursor-pointer hover:from-blue-800 hover:to-indigo-800 transition-all shadow-md"
-              >
-                파일 선택
-              </Label>
-              <input
-                id="pdf-file"
-                type="file"
-                accept=".pdf"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-            </div>
+      <main className="max-w-3xl mx-auto px-4 py-10 space-y-6">
+        {/* 숨겨진 input */}
+        <input
+          ref={fileInputRef}
+          id="pdf-file-input"
+          type="file"
+          accept=".pdf"
+          onChange={handleFileChange}
+          style={{ display: "none" }}
+        />
 
-            {file && (
-              <div className="flex items-center gap-2 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-md border border-blue-900/20">
-                <FileText className="w-5 h-5 text-blue-900" />
-                <span className="text-sm flex-1 text-blue-900 font-medium">{file.name}</span>
-                <span className="text-sm text-amber-700 font-semibold">
-                  {(file.size / 1024 / 1024).toFixed(2)} MB
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setFile(null)}
-                  className="hover:bg-red-100 hover:text-red-700"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
+        {/* 드래그 드롭 영역 - onClick 핸들러는 유지하되 내부 로직은 비움 */}
+        <label
+          htmlFor="pdf-file-input"
+          onClick={handleLabelClick}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-12 text-center transition-all select-none ${
+            loading
+              ? "border-blue-900/20 bg-white/50 cursor-not-allowed pointer-events-none"
+              : isDragging
+              ? "border-amber-500 bg-amber-50 scale-[1.01] cursor-copy"
+              : file
+              ? "border-blue-500 bg-blue-50/50 cursor-pointer"
+              : "border-blue-900/30 hover:border-amber-500 hover:bg-amber-50/60 cursor-pointer"
+          }`}
+        >
+          <div className="flex flex-col items-center gap-3 pointer-events-none">
+            {loading ? (
+              <Loader2 className="w-12 h-12 text-blue-700 animate-spin" />
+            ) : file ? (
+              <FileText className="w-12 h-12 text-blue-600" />
+            ) : (
+              <Upload className="w-12 h-12 text-blue-900/30" />
             )}
 
-            {analyzing && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-blue-900 font-medium">분석 중...</span>
-                  <span className="text-amber-700 font-semibold">{progress}%</span>
-                </div>
-                <Progress value={progress} className="h-2" />
-              </div>
+            {loading ? (
+              <p className="text-blue-900 font-semibold">업로드 중...</p>
+            ) : file ? (
+              <>
+                <p className="text-blue-900 font-semibold">{file.name}</p>
+                <p className="text-slate-500 text-sm">
+                  {(file.size / 1024).toFixed(1)} KB · 클릭하면 다른 파일 선택
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-blue-900 font-semibold">PDF 파일을 선택하세요</p>
+                <p className="text-slate-500 text-sm">클릭하거나 파일을 여기에 드래그</p>
+              </>
             )}
-
-            <Button
-              onClick={handleAnalyze}
-              disabled={!file || analyzing}
-              className="w-full bg-gradient-to-r from-blue-900 to-indigo-900 hover:from-blue-800 hover:to-indigo-800 text-white shadow-lg"
-            >
-              {analyzing ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  분석 중...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  AI 분석 시작
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-
-        {analysisComplete && (
-          <div className="space-y-6 fade-in-scale">
-            <Card className="shadow-lg border-amber-500/30 bg-gradient-to-br from-white to-amber-50/30">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-blue-900">
-                  <BarChart3 className="w-5 h-5 text-amber-600" />
-                  문서 카테고리
-                </CardTitle>
-                <CardDescription>
-                  AI가 자동으로 감지한 문서 유형입니다
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    {(() => {
-                      const Icon = categoryIcons[analysisResults.category] || FileText;
-                      const colorClass = categoryColors[analysisResults.category] || categoryColors["기타"];
-                      return (
-                        <>
-                          <Icon className="w-8 h-8 text-blue-900" />
-                          <div>
-                            <Badge className={colorClass + " border text-lg px-4 py-2"}>
-                              {analysisResults.category}
-                            </Badge>
-                            <p className="text-sm text-muted-foreground mt-2">
-                              신뢰도: <span className="text-amber-700 font-semibold">{analysisResults.confidence}%</span>
-                            </p>
-                          </div>
-                        </>
-                      );
-                    })()}
-                  </div>
-                  <Button
-                    onClick={handleSaveDocument}
-                    size="lg"
-                    className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-lg"
-                  >
-                    대시보드에 저장
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Tabs defaultValue="full" className="w-full">
-              <TabsList className="grid w-full grid-cols-4 bg-gradient-to-r from-blue-900/10 to-indigo-900/10 border border-blue-900/20">
-                <TabsTrigger value="full">전체 요약</TabsTrigger>
-                <TabsTrigger value="pages">페이지별</TabsTrigger>
-                <TabsTrigger value="sections">소제목별</TabsTrigger>
-                <TabsTrigger value="percent">구간별</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="full">
-                <Card className="shadow-lg border-blue-900/10 bg-white/90 backdrop-blur">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-blue-900">
-                      <BookOpen className="w-5 h-5 text-amber-600" />
-                      전체 문서 요약
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="leading-relaxed">
-                      {analysisResults.fullSummary}
-                    </p>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="pages">
-                <Card className="shadow-lg border-blue-900/10 bg-white/90 backdrop-blur">
-                  <CardHeader>
-                    <CardTitle className="text-blue-900">페이지별 요약</CardTitle>
-                    <CardDescription>
-                      각 페이지의 주요 내용을 확인하세요
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {analysisResults.pageSummaries.map((page, index) => (
-                      <div key={page.page}>
-                        {index > 0 && <Separator className="my-4" />}
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge variant="outline" className="border-blue-900/30 text-blue-900">페이지 {page.page}</Badge>
-                          </div>
-                          <p className="text-sm leading-relaxed">
-                            {page.summary}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="sections">
-                <Card className="shadow-lg border-blue-900/10 bg-white/90 backdrop-blur">
-                  <CardHeader>
-                    <CardTitle className="text-blue-900">소제목별 요약</CardTitle>
-                    <CardDescription>
-                      문서의 각 섹션을 주제별로 정리했습니다
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {analysisResults.sectionSummaries.map((section, index) => (
-                      <div key={index}>
-                        {index > 0 && <Separator className="my-4" />}
-                        <div>
-                          <h4 className="mb-2 text-blue-900">{section.title}</h4>
-                          <p className="text-sm leading-relaxed text-muted-foreground">
-                            {section.summary}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="percent">
-                <Card className="shadow-lg border-blue-900/10 bg-white/90 backdrop-blur">
-                  <CardHeader>
-                    <CardTitle className="text-blue-900">구간별 요약 (25% 단위)</CardTitle>
-                    <CardDescription>
-                      문서를 4등분하여 각 구간의 내용을 요약했습니다
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {analysisResults.percentSummaries.map((item, index) => (
-                      <div key={item.percent}>
-                        {index > 0 && <Separator className="my-4" />}
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge variant="secondary" className="bg-amber-100 text-amber-900 border-amber-300">0-{item.percent}%</Badge>
-                          </div>
-                          <p className="text-sm leading-relaxed">
-                            {item.summary}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
           </div>
+        </label>
+
+        {/* 업로드 버튼 */}
+        {file && !loading && (
+          <Button
+            onClick={handleUpload}
+            className="w-full bg-gradient-to-r from-blue-900 to-indigo-800 hover:from-blue-800 hover:to-indigo-700 text-white h-11"
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            FastAPI로 업로드 시작
+          </Button>
+        )}
+
+        {/* 로그 패널 */}
+        {logs.length > 0 && (
+          <Card className="shadow-lg border-blue-900/10 bg-gray-950">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-green-400 text-xs tracking-widest font-mono">
+                ▶ UPLOAD LOG
+              </CardTitle>
+              <CardDescription className="text-gray-500 text-xs font-mono">
+                {FASTAPI_URL}/analyze-pdf
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-1.5 max-h-72 overflow-y-auto">
+              {logs.map((log, i) => (
+                <div key={i} className="flex items-start gap-2 text-xs font-mono">
+                  <span className="text-gray-600 shrink-0 w-20">{log.time}</span>
+                  {log.level === "success" ? (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-green-500 shrink-0 mt-0.5" />
+                  ) : log.level === "error" ? (
+                    <XCircle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
+                  ) : (
+                    <span className="text-blue-400 shrink-0">›</span>
+                  )}
+                  <span
+                    className={
+                      log.level === "success"
+                        ? "text-green-400"
+                        : log.level === "error"
+                        ? "text-red-400"
+                        : "text-gray-300"
+                    }
+                  >
+                    {log.message}
+                  </span>
+                </div>
+              ))}
+              {loading && (
+                <div className="flex items-center gap-2 text-yellow-400 text-xs font-mono">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>응답 대기 중...</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
       </main>
     </div>
