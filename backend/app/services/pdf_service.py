@@ -8,7 +8,7 @@ import re
 
 POPPLER_PATH =  r"C:\poppler\Library\bin"
 
-class OCRService:
+class PDFService:
     def __init__(self):
         self.reader = easyocr.Reader(['ko', 'en'], gpu=False )
     
@@ -70,5 +70,6 @@ class OCRService:
 
         # 연속 줄바꿈 정리
         text = re.sub(r'\n+', '\n', text)
-        return text.strip() 
-ocr_service = OCRService()
+        return text.strip()
+     
+pdf_service = PDFService() 
