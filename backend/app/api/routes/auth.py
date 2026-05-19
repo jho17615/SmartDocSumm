@@ -35,7 +35,6 @@ async def get_me(
     access_token: Optional[str] = Cookie(default=None),
     db: Session = Depends(get_db)
 ):
-    print("test")
     if access_token is None:
         raise HTTPException(status_code=401, detail="인증 토큰이 없습니다.")
  

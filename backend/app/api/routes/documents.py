@@ -13,6 +13,8 @@ from app.services.document_service import document_service
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
+
+
 def get_current_user_id(
     access_token: Optional[str] = Cookie(default=None),
     db: Session = Depends(get_db)   
@@ -65,6 +67,26 @@ async def upload_document(
         if os.path.exists(file_path):
             os.remove(file_path)
         
+@router.get("/list")
+def get_document_list(
+    db: Session = Depends(get_db),
+    owner_id: int = Depends(get_current_user_id)
+):
+    from app.db.models import Document
+    documents = db.query(Document).filter(
+        Document.owner_id == owner_id,
+        Document.is_deleted == False
+    ).all()
+
+    return [
+        {
+            "id": doc.id,
+            "title": doc.title,
+            "category": doc.category,
+            "created_at": doc.created_at,
+        } for doc in documents
+    ]
+
 @router.get("/{document_id}")
 def get_document(
     document_id: int,
@@ -73,20 +95,19 @@ def get_document(
 ):
     from app.db.models import Document, Summary
     document = db.query(Document).filter(
-        Document.id == document_id, 
-        Document.owner_id == owner_id, 
+        Document.id == document_id,
+        Document.owner_id == owner_id,
         Document.is_deleted == False
-        ).first()
+    ).first()
 
     if not document:
         raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
-    
-    # 요약 조회
+
     summary = db.query(Summary).filter(
-        Summary.document_id == document_id, 
+        Summary.document_id == document_id,
         Summary.is_deleted == False
-        ).first()
-    
+    ).first()
+
     return {
         "id": document.id,
         "title": document.title,
@@ -95,23 +116,3 @@ def get_document(
         "created_at": document.created_at,
         "summary": summary.content if summary else None
     }
-
-@router.get("/")
-def get_documents(
-    db: Session = Depends(get_db),
-    owner_id: int = Depends(get_current_user_id)
-):
-    from app.db.models import Document
-    documents = db.query(Document).filter(
-        Document.owner_id == owner_id, 
-        Document.is_deleted == False
-        ).all()
-    
-    return [
-        {
-            "id": doc.id,
-            "title": doc.title,
-            "category": doc.category,
-            "created_at": doc.created_at} for doc in documents
-            
-    ]
