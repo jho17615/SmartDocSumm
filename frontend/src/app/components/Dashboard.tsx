@@ -39,6 +39,7 @@ import {
 import { PDFDetailView } from "./PDFDetailView";
 import { toast } from "sonner";
 import "../../styles/transitions.css";
+import { logoutApi } from "../api/auth";
 
 const FASTAPI_URL = "http://127.0.0.1:8000";
 
@@ -104,6 +105,15 @@ const getFileIcon = (fileName: string) => {
 
 export function Dashboard({ userName, onLogout }: DashboardProps) {
   const [selectedDocument, setSelectedDocument] = useState<PDFDocument | null>(null);
+
+  const handleLogout = async () => {
+    try {
+      await logoutApi();
+    } catch {
+      // 서버 오류여도 프론트 상태는 초기화
+    }
+    onLogout();
+  };
   
   // 업로드 관련 상태
   const [uploading, setUploading] = useState(false);
@@ -457,10 +467,10 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
             <span className="text-sm text-amber-200">
               환영합니다, <span className="font-semibold text-white">{userName}</span>님
             </span>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={onLogout}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLogout}
               className="border-black/50 text-black hover:bg-white/10"
             >
               <LogOut className="w-4 h-4 mr-2" />로그아웃
