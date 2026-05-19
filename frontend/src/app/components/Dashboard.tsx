@@ -41,7 +41,7 @@ import { toast } from "sonner";
 import "../../styles/transitions.css";
 import { logoutApi } from "../api/auth";
 
-const FASTAPI_URL = "http://127.0.0.1:8000";
+const FASTAPI_URL = "";
 
 interface DashboardProps {
   userName: string;
@@ -187,39 +187,47 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
       const formData = new FormData();
       formData.append("file", uploadedFile);
 
-      const response = await fetch(`${FASTAPI_URL}/analyze-file`, {  // 엔드포인트 변경
+      const response = await fetch(`/api/documents/upload`, {  // 엔드포인트 변경
         method: "POST",
         body: formData,
+        credentials: "include", // 쿠키 포함
       });
 
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
       }
       
+      if(!response.ok) throw new Error(`HTTP ${response.status}`);
+
       setUploadProgress(95);
       setUploadStatus("analyzing");
       setUploadMessage("AI 분석 중...");
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
 
+      // 백엔드 응답
       const data = await response.json();
+
+      const docResponse = await fetch(`/api/documents/${data.document_id}`, {
+        credentials: "include",
+      });
+
+      if (!docResponse.ok) throw new Error("문서 조회 실패");
+
+      const docData = await docResponse.json();
       setUploadProgress(100);
       setUploadStatus("complete");
       setUploadMessage("분석 완료! 상세 페이지로 이동합니다...");
+    
+      toast.success("파일이 성공적으로 업로드되고 분석되었습니다!");
 
-      toast.success(`${data.filename} 업로드 완료!`);
-
-      const fileExt = uploadedFile.name.split('.').pop()?.toLowerCase() || '';
       const newDoc: PDFDocument = {
-        id: Date.now().toString(),
-        fileName: data.filename,
-        category: "일반문서",
-        date: new Date().toISOString().split("T")[0],
-        summary: data.text?.slice(0, 100) + "..." || "텍스트 없음",
-        pageCount: data.pages || data.pageCount || 0,
-        fileType: fileExt,
+        id: String(docData.id),
+        fileName: docData.title,
+        category: docData.category ?? "일반문서",
+        date: docData.created_at?.split("T")[0] ?? new Date().toISOString().split("T")[0],
+        summary: docData.summary ?? "요약 없음",
+        pageCount: 0,
+        fileType: uploadedFile.name.split('.').pop()?.toLowerCase(),
       };
       
       setDocuments((prev) => [newDoc, ...prev]);
@@ -230,16 +238,11 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
       }, 1000);
       
     } catch (err) {
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-      }
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       setUploadStatus("error");
       setUploadMessage("업로드 실패. 서버를 확인하세요.");
       toast.error("업로드 실패");
-      
-      setTimeout(() => {
-        resetUploadState();
-      }, 2000);
+      setTimeout(resetUploadState, 2000);
     }
   };
 
