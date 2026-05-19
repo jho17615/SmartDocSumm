@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # DB 설정
-    DATABASE_URL: str = "mysql+pymysql://test:qwer1234@localhost:3306/test"
+    DATABASE_URL: str = "mysql+pymysql://test:qwer1234@localhost:3306/docmind"
 
     class Config:
         env_file = ".env"

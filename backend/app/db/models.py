@@ -27,18 +27,26 @@ class Document(Base):
     __tablename__ = "documents"
     id = Column(Integer, primary_key=True, index=True)
     owner_id = Column(Integer, ForeignKey("users.id"))
+    category = Column(String(50), default="기타")
     title = Column(String(500), nullable=False)
+    content = Column(Text, nullable= False) 
     is_deleted = Column(Boolean, default=False)
     created_at = Column(DateTime, default=get_now)
+    updated_at = Column(DateTime, default=get_now, onupdate=get_now)
 
     owner = relationship("User", back_populates="documents")
     summaries = relationship("Summary", back_populates="document")
+
 
 class Summary(Base):
     __tablename__ = "summaries"
     id = Column(Integer, primary_key=True, index=True)
     document_id = Column(Integer, ForeignKey("documents.id"))
+    type =  Column(String(50), default="전체요약")
     content = Column(Text, nullable=False)
+    is_deleted = Column(Boolean, default=False)
     created_at = Column(DateTime, default=get_now)
+    updated_at = Column(DateTime, default=get_now, onupdate=get_now)
 
     document = relationship("Document", back_populates="summaries")
+

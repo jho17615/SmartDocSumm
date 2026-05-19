@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.db.database import Base, engine
 import app.db.models  # ✅ 테이블 인식용
 from app.api.routes import auth
+from app.api.routes.documents import router as document_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -21,7 +22,9 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(document_router)
 
 @app.get("/")
 async def root():
     return {"message": "서버가 정상 가동 중입니다. /docs 에서 테스트해 보세요!"}
+
