@@ -16,15 +16,15 @@ class DocumentService:
             if file_path.endswith(".pdf"):
                 from app.services.pdf_service import pdf_service
                 content =  pdf_service.extract_text_ocr(file_path)
-            #elif file_path.endswith(".hwp"):
-              #  from app.services.hwp_service import extract_text_from_hwp  
-               # content = extract_text_from_hwp(file_path)   
-            # elif file_path.endswith(".docx") or file_path.endswith(".doc"):
-                #from app.services.docx_service import docx_service
-                # content = docx_service.extract_text(file_path)
+            elif file_path.endswith(".docx") or file_path.endswith(".doc"):
+                from app.services.docx_service import docx_service
+                content = docx_service.extract_text(file_path)
+            # elif file_path.endswith(".hwp"):
+            #     from app.services.hwp_service import extract_text_from_hwp
+            #     content = extract_text_from_hwp(file_path)
             # elif file_path.endswith(".pptx") or file_path.endswith(".ppt"):
-                # from app.services.pptx_service import pptx_service
-                # content = pptx_service.extract_text(file_path)
+            #     from app.services.pptx_service import pptx_service
+            #     content = pptx_service.extract_text(file_path)
             else:
                 raise ValueError("지원하지 않는 파일 형식입니다.")
 

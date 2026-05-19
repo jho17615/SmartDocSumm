@@ -5,8 +5,10 @@ from pdf2image import convert_from_path
 from PIL import Image
 from hanspell import spell_checker
 import re
+from app.core.config import settings
 
-POPPLER_PATH =  r"C:\poppler\Library\bin"
+
+POPPLER_PATH = settings.POPPLER_PATH
 
 class PDFService:
     def __init__(self):

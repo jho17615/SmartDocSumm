@@ -35,6 +35,7 @@ async def get_me(
     access_token: Optional[str] = Cookie(default=None),
     db: Session = Depends(get_db)
 ):
+    print("test")
     if access_token is None:
         raise HTTPException(status_code=401, detail="인증 토큰이 없습니다.")
  
@@ -112,9 +113,9 @@ def refresh_token(request: RefreshTokenRequest):
     refresh_token = create_refresh_token(data={"sub": user_id})
     return Token(access_token=access_token, refresh_token=refresh_token)
 
-@router.get("/me", response_model=UserResponse)
-def get_me(current_user=Depends(get_current_active_user)):
-    return current_user
+# @router.get("/me", response_model=UserResponse)
+# def get_me(current_user=Depends(get_current_active_user)):
+#     return current_user
 
 
 @router.post("/logout")

@@ -88,10 +88,10 @@ def get_document(
         ).first()
     
     return {
-        "id": document.id, 
+        "id": document.id,
         "title": document.title,
         "content": document.content,
-        "file_type": document.file_type,
+        "category": document.category,
         "created_at": document.created_at,
         "summary": summary.content if summary else None
     }
@@ -109,9 +109,9 @@ def get_documents(
     
     return [
         {
-            "id": doc.id, 
-            "title": doc.title, 
-            "file_type": doc.file_type,
+            "id": doc.id,
+            "title": doc.title,
+            "category": doc.category,
             "created_at": doc.created_at} for doc in documents
             
     ]
