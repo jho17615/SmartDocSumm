@@ -49,7 +49,7 @@ interface PDFDocument {
   date: string;
   summary: string;
   pageCount: number;
-  // ✅ AI 분석 결과도 문서에 포함
+  content?: string;
   analysisResults?: {
     confidence: number;
     fullSummary: string;
@@ -130,7 +130,7 @@ export function PDFDetailView({ document, onBack, onDelete, onUpdate }: PDFDetai
   const [analysisResults, setAnalysisResults] = useState<AnalysisResults>(
     document.analysisResults || {
       ...defaultAnalysisResults,
-      fullSummary: document.summary + " 이 문서는 전문적인 내용을 담고 있으며, 주요 개념과 실무 적용 방법을 상세히 설명하고 있습니다.",
+      fullSummary: document.summary ?? "",
       pageSummaries: Array.from({ length: Math.min(document.pageCount, 10) }, (_, i) => ({
         page: i + 1,
         summary: `${i + 1}페이지: 문서의 주요 내용을 분석한 결과입니다.`
