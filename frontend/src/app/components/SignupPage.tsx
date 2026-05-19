@@ -3,20 +3,22 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { signupAPI } from "../api/auth";
 
 interface SignupPageProps {
-  onSignup: (email: string, password: string, name: string) => void;
   onSwitchToLogin: () => void;
 }
 
-export function SignupPage({ onSignup, onSwitchToLogin }: SignupPageProps) {
+export function SignupPage({ onSwitchToLogin }: SignupPageProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
@@ -30,7 +32,16 @@ export function SignupPage({ onSignup, onSwitchToLogin }: SignupPageProps) {
       return;
     }
 
-    onSignup(email, password, name);
+    setLoading(true);
+    try {
+      await signupAPI(email, password, name);
+      setSuccess(true);
+      setTimeout(() => onSwitchToLogin(), 1500);
+    } catch (err: any) {
+      setError(err.message || "회원가입에 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -89,8 +100,11 @@ export function SignupPage({ onSignup, onSwitchToLogin }: SignupPageProps) {
             {error && (
               <div className="text-sm text-destructive">{error}</div>
             )}
-            <Button type="submit" className="w-full">
-              회원가입
+            {success && (
+              <div className="text-sm text-green-600">회원가입 성공! 로그인 페이지로 이동합니다...</div>
+            )}
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "처리중..." : "회원가입"}
             </Button>
             <div className="text-center">
               <Button

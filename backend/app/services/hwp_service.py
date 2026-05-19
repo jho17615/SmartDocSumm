@@ -565,5 +565,22 @@ def main():
         process_folder(folder)
 
 
+# hwp_service.py 맨 아래에 추가
+def extract_text_from_hwp(file_path: str) -> str:
+    """document_service에서 호출하는 진입점 — 텍스트만 반환"""
+    ole = olefile.OleFileIO(file_path)
+    is_compressed = check_hwp_compressed(ole)
+    body_text, shape_text = extract_text(ole, is_compressed)
+    ole.close()
+    
+    body_text = clean_hwp_text(body_text)
+    shape_text = clean_hwp_text(shape_text)
+    
+    # 본문 + 도형 텍스트 합쳐서 반환
+    result = body_text
+    if shape_text.strip():
+        result += "\n\n" + shape_text
+    return result
+
 if __name__ == "__main__":
     main()

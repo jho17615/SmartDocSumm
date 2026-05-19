@@ -112,13 +112,13 @@ def refresh_token(request: RefreshTokenRequest):
     refresh_token = create_refresh_token(data={"sub": user_id})
     return Token(access_token=access_token, refresh_token=refresh_token)
 
-@router.get("/me", response_model=UserResponse)
-def get_me(current_user=Depends(get_current_active_user)):
-    return current_user
+# @router.get("/me", response_model=UserResponse)
+# def get_me(current_user=Depends(get_current_active_user)):
+#     return current_user
 
 
 @router.post("/logout")
 def logout(response: Response):
-    response.delete_cookie("access_token")   # ✅ 쿠키 삭제
-    response.delete_cookie("refresh_token")
+    response.delete_cookie(key="access_token", httponly=True, samesite="lax")
+    response.delete_cookie(key="refresh_token", httponly=True, samesite="lax")
     return {"message": "로그아웃 성공"}
