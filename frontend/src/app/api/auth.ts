@@ -4,7 +4,7 @@ export interface LoginRequest {
 }
 
 export async function signupAPI(email: string, password: string, name: string) {
-    const response = await fetch("api/auth/register", {
+    const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -28,6 +28,7 @@ export async function getMeAPI() {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
     });
+
     if (!response.ok) throw new Error("사용자 정보를 가져올 수 없습니다.");
     return response.json();
 }

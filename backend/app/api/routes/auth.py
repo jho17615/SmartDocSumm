@@ -112,9 +112,9 @@ def refresh_token(request: RefreshTokenRequest):
     refresh_token = create_refresh_token(data={"sub": user_id})
     return Token(access_token=access_token, refresh_token=refresh_token)
 
-@router.get("/me", response_model=UserResponse)
-def get_me(current_user=Depends(get_current_active_user)):
-    return current_user
+# @router.get("/me", response_model=UserResponse)
+# def get_me(current_user=Depends(get_current_active_user)):
+#     return current_user
 
 
 @router.post("/logout")
