@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Cookie, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, Cookie, UploadFile, File, Form, status
 from sqlalchemy.orm import Session
 from typing import Optional
 from jose import JWTError, jwt
@@ -9,7 +9,8 @@ from app.db.database import get_db
 from app.core.config import settings
 from app.services.auth_service import get_user
 from app.services.document_service import document_service
-
+from app.db.document import update_document
+from app.schemas.document import DocumentUpdate
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -116,3 +117,35 @@ def get_document(
         "created_at": document.created_at,
         "summary": summary.content if summary else None
     }
+
+
+@router.put("/modify/{document_id}", status_code=status.HTTP_200_OK)
+async def modify_document(
+    document_id: int,
+    document_data: DocumentUpdate,
+    db: Session = Depends(get_db),
+    owner_id: int = Depends(get_current_user_id)
+):
+    from app.db.models import Document, Summary
+    existing = db.query(Document).filter(
+        Document.id == document_id,
+        Document.owner_id == owner_id,
+        Document.is_deleted == False
+    ).first()
+    if not existing:
+        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
+
+    document = update_document(db, document_id, document_data)
+    if not document:
+        raise HTTPException(status_code=404, detail="수정에 실패하였습니다.")
+
+    if document_data.summary is not None:
+        summary = db.query(Summary).filter(
+            Summary.document_id == document_id,
+            Summary.is_deleted == False
+        ).first()
+        if summary:
+            summary.content = document_data.summary
+            db.commit()
+
+    return document
