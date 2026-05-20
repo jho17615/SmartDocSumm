@@ -25,7 +25,7 @@ export async function documentModifyAPI(documentId: number, content: string, tit
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
-            body: JSON.stringify({ title, summary: content, category }),
+            body: JSON.stringify({ title, summary: content, content, category }),
         });
         if (!response.ok) throw new Error("문서 수정 실패");
         return await response.json();

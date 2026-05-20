@@ -126,13 +126,6 @@ async def modify_document(
     db: Session = Depends(get_db),
 ):
     from app.db.models import Summary
-#    existing = db.query(Document).filter(
-#        Document.id == document_id,
-#        Document.owner_id == owner_id,
-#        Document.is_deleted == False
-#    ).first()
-#    if not existing:
-#        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
 
     document = update_document(db, document_id, document_data)
     if not document:
