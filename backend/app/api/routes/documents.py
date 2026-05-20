@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Cookie, UploadFile, File, Form, status
+from fastapi import APIRouter, Depends, HTTPException, Cookie, UploadFile, File, Form, status, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from jose import JWTError, jwt
@@ -13,7 +13,6 @@ from app.db.document import update_document, delete_document
 from app.schemas.document import DocumentUpdate
 
 router = APIRouter(prefix="/documents", tags=["documents"])
-
 
 
 def get_current_user_id(
@@ -41,11 +40,8 @@ async def upload_document(
     db: Session = Depends(get_db),
     owner_id: int = Depends(get_current_user_id)
 ):
-
-    # 제목이 없는 경우 파일 이름에서 제목 추출
     if not title:
-        title = file.filename.rsplit(".", 1)[0]  # 확장자 제거한 파일 이름을 제목으로 사용  
-    # 파일 임시 저장
+        title = file.filename.rsplit(".", 1)[0]
     upload_dir = "uploads"
     os.makedirs(upload_dir, exist_ok=True)
     file_path = os.path.join(upload_dir, file.filename)
@@ -54,39 +50,61 @@ async def upload_document(
         shutil.copyfileobj(file.file, buffer)
     
     try: 
-        # 문서 처리
         document = document_service.process_document(
-            db = db, 
-            file_path = file_path,
-            owner_id = owner_id,
-            title = title
+            db=db, 
+            file_path=file_path,
+            owner_id=owner_id,
+            title=title
         )
-        return {"message" : "업로드 성공", "document_id": document.id}
+        return {"message": "업로드 성공", "document_id": document.id}
     
     finally:
-        # 임시 파일 삭제
         if os.path.exists(file_path):
             os.remove(file_path)
-        
+
+
+# ✅ 페이징 처리 추가
 @router.get("/list")
 def get_document_list(
+    page: int = Query(default=1, ge=1, description="페이지 번호 (1부터 시작)"),
+    size: int = Query(default=5, ge=1, le=50, description="페이지당 문서 수"),
     db: Session = Depends(get_db),
     owner_id: int = Depends(get_current_user_id)
 ):
     from app.db.models import Document
-    documents = db.query(Document).filter(
+
+    base_query = db.query(Document).filter(
         Document.owner_id == owner_id,
         Document.is_deleted == False
-    ).all()
+    )
 
-    return [
-        {
-            "id": doc.id,
-            "title": doc.title,
-            "category": doc.category,
-            "created_at": doc.created_at,
-        } for doc in documents
-    ]
+    total = base_query.count()
+    total_pages = (total + size - 1) // size  # ceil 나눗셈
+
+    documents = (
+        base_query
+        .order_by(Document.created_at.desc())
+        .offset((page - 1) * size)
+        .limit(size)
+        .all()
+    )
+
+    return {
+        "items": [
+            {
+                "id": doc.id,
+                "title": doc.title,
+                "category": doc.category,
+                "created_at": doc.created_at,
+            }
+            for doc in documents
+        ],
+        "total": total,
+        "page": page,
+        "size": size,
+        "total_pages": total_pages,
+    }
+
 
 @router.get("/{document_id}")
 def get_document(
@@ -144,15 +162,12 @@ async def modify_document(
 
 
 @router.delete("/delete/{document_id}", status_code=status.HTTP_200_OK)
-async def modify_document(
+async def delete_document_route(
     document_id: int,
     db: Session = Depends(get_db),
 ):
-
-
     document = delete_document(db, document_id)
     if not document:
         raise HTTPException(status_code=404, detail="삭제에 실패하였습니다.")
-
 
     return document

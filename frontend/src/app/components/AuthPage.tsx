@@ -131,7 +131,7 @@ export function AuthPage({ onLogin, onSignup }: AuthPageProps) {
                 <User />
                 <input
                   type="text"
-                  placeholder="Username or Email"
+                  placeholder="Email"
                   value={signInEmail}
                   onChange={(e) => setSignInEmail(e.target.value)}
                   required
