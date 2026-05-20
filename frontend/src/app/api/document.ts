@@ -1,5 +1,24 @@
-export async function getDocumentListAPI() {
-    const response = await fetch("/api/documents/list", {
+export interface DocumentListItem {
+    id: number;
+    title: string;
+    category: string;
+    created_at: string;
+}
+
+export interface DocumentListResponse {
+    items: DocumentListItem[];
+    total: number;
+    page: number;
+    size: number;
+    total_pages: number;
+}
+
+// ✅ 페이징 파라미터 추가 (기본값: 1페이지, 5개)
+export async function getDocumentListAPI(
+    page: number = 1,
+    size: number = 5
+): Promise<DocumentListResponse> {
+    const response = await fetch(`/api/documents/list?page=${page}&size=${size}`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -46,7 +65,7 @@ export async function documentdeleteAPI(documentId: number) {
         if (!response.ok) throw new Error("문서 삭제 실패");
         return await response.json();
     } catch (error) {
-        console.error("documentModifyAPI 오류:", error);
+        console.error("documentdeleteAPI 오류:", error);
         throw error;
     }
 }

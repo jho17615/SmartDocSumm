@@ -33,16 +33,17 @@ import {
   CheckCircle2,
   XCircle,
   File,
-  FileSpreadsheet,
-  FileArchive,
 } from "lucide-react";
 import { PDFDetailView } from "./PDFDetailView";
 import { toast } from "sonner";
 import "../../styles/transitions.css";
 import { logoutApi } from "../api/auth";
-import { getDocumentListAPI, getDocumentDetailAPI, documentdeleteAPI } from "../api/document";
-
-const FASTAPI_URL = "";
+import {
+  getDocumentListAPI,
+  getDocumentDetailAPI,
+  documentdeleteAPI,
+  DocumentListResponse,
+} from "../api/document";
 
 interface DashboardProps {
   userName: string;
@@ -56,7 +57,7 @@ interface PDFDocument {
   date: string;
   summary: string;
   pageCount: number;
-  fileType?: string; // 파일 타입 추가
+  fileType?: string;
 }
 
 const categoryIcons: Record<string, any> = {
@@ -79,7 +80,6 @@ const categoryColors: Record<string, string> = {
   "기타": "bg-orange-100 text-orange-800 border-orange-300",
 };
 
-// 지원하는 파일 확장자
 const SUPPORTED_EXTENSIONS = [".pdf", ".doc", ".docx", ".hwp", ".ppt", ".pptx"];
 const SUPPORTED_MIME_TYPES = [
   "application/pdf",
@@ -90,108 +90,134 @@ const SUPPORTED_MIME_TYPES = [
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 ];
 
-// 파일 확장자에 따른 아이콘
-const getFileIcon = (fileName: string) => {
-  const ext = fileName.split('.').pop()?.toLowerCase();
-  switch (ext) {
-    case 'pdf': return FileText;
-    case 'doc':
-    case 'docx': return FileText;
-    case 'hwp': return FileText;
-    case 'ppt':
-    case 'pptx': return Presentation;
-    default: return File;
-  }
-};
+const ITEMS_PER_PAGE = 5;
+const categories = ["전체", "법안", "발표자료", "교육자료", "기술문서", "뉴스/기사", "일반문서", "기타"];
 
 export function Dashboard({ userName, onLogout }: DashboardProps) {
   const [selectedDocument, setSelectedDocument] = useState<PDFDocument | null>(null);
 
-  const handleLogout = async () => {
-    try {
-      await logoutApi();
-    } catch {
-      // 서버 오류여도 프론트 상태는 초기화
-    }
-    onLogout();
-  };
-
-  // 업로드 관련 상태
+  // ── 업로드 상태 ────────────────────────────────────
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "analyzing" | "complete" | "error">("idle");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadMessage, setUploadMessage] = useState("");
-
   const [isDragging, setIsDragging] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState<"latest" | "oldest" | "name-asc" | "name-desc" | "date-asc" | "date-desc">("latest");
 
-  const [categoryPage, setCategoryPage] = useState<Record<string, number>>({
-    "전체": 1,
-  });
-  const [activeTab, setActiveTab] = useState("전체");
-
-  const itemsPerPage = 5;
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
+  // ── 문서 목록 상태 ─────────────────────────────────
   const [documents, setDocuments] = useState<PDFDocument[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(true);
   const [loadingDocId, setLoadingDocId] = useState<string | null>(null);
 
+  // ── 백엔드 페이징 상태 ─────────────────────────────
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+
+  // ── 검색·정렬·탭·선택 상태 ───────────────────────────
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<"latest" | "oldest" | "name-asc" | "name-desc">("latest");
+  const [activeTab, setActiveTab] = useState("전체");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── 문서 목록 fetch (페이지·탭 변경 시) ───────────────
+  const fetchDocuments = async (targetPage: number = 1) => {
+    setIsLoadingDocs(true);
+    setSelectedIds([]);
+    try {
+      const data: DocumentListResponse = await getDocumentListAPI(targetPage, ITEMS_PER_PAGE);
+      const mapped: PDFDocument[] = data.items.map((doc) => ({
+        id: String(doc.id),
+        fileName: doc.title,
+        category: doc.category ?? "기타",
+        date: doc.created_at?.split("T")[0] ?? "",
+        summary: "",
+        pageCount: 0,
+      }));
+      setDocuments(mapped);
+      setPage(data.page);
+      setTotalPages(data.total_pages);
+      setTotal(data.total);
+    } catch {
+      toast.error("문서 목록을 불러오지 못했습니다.");
+    } finally {
+      setIsLoadingDocs(false);
+    }
+  };
+
   useEffect(() => {
-    getDocumentListAPI()
-      .then((data) => {
-        const mapped: PDFDocument[] = data.map((doc: any) => ({
-          id: String(doc.id),
-          fileName: doc.title,
-          category: doc.category ?? "기타",
-          date: doc.created_at?.split("T")[0] ?? "",
-          summary: "",
-          pageCount: 0,
-        }));
-        setDocuments(mapped);
-      })
-      .catch(() => toast.error("문서 목록을 불러오지 못했습니다."))
-      .finally(() => setIsLoadingDocs(false));
-  }, []);
+    fetchDocuments(page);
+  }, [page]);
 
-  // 파일 유효성 검사
+  // ── 카테고리별 문서 수 (전체 total 기준) ──────────────
+  // 카테고리 카운트는 현재 페이지 문서 기준으로 표시 (전체 통계는 별도 API 필요 시 확장)
+  const getCategoryCount = (category: string) =>
+    category === "전체"
+      ? total
+      : documents.filter((d) => d.category === category).length;
+
+  // ── 클라이언트 측 필터·정렬 (현재 페이지 내에서만) ─────
+  const filteredDocuments = documents.filter(
+    (doc) =>
+      doc.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      doc.category.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const sortedDocuments = [...filteredDocuments].sort((a, b) => {
+    switch (sortBy) {
+      case "latest":   return new Date(b.date).getTime() - new Date(a.date).getTime();
+      case "oldest":   return new Date(a.date).getTime() - new Date(b.date).getTime();
+      case "name-asc": return a.fileName.localeCompare(b.fileName);
+      case "name-desc":return b.fileName.localeCompare(a.fileName);
+      default: return 0;
+    }
+  });
+
+  const displayedDocuments =
+    activeTab === "전체"
+      ? sortedDocuments
+      : sortedDocuments.filter((d) => d.category === activeTab);
+
+  // ── 탭 변경: 페이지를 1로 리셋해서 재조회 ──────────────
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    setPage(1);
+    // page가 이미 1이면 useEffect 미발동 → 직접 호출
+    if (page === 1) fetchDocuments(1);
+  };
+
+  // ── 검색어 변경 시 1페이지로 리셋 ─────────────────────
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setPage(1);
+    if (page === 1) fetchDocuments(1);
+  };
+
+  // ── 파일 유효성 검사 ────────────────────────────────
   const isValidFile = (file: File) => {
-    const ext = '.' + file.name.split('.').pop()?.toLowerCase();
-    const isValidExt = SUPPORTED_EXTENSIONS.includes(ext);
-    const isValidMime = SUPPORTED_MIME_TYPES.includes(file.type);
-
-    if (!isValidExt && !isValidMime) {
-      toast.error(`지원하지 않는 파일 형식입니다. 지원 형식: ${SUPPORTED_EXTENSIONS.join(', ')}`);
+    const ext = "." + file.name.split(".").pop()?.toLowerCase();
+    if (!SUPPORTED_EXTENSIONS.includes(ext) && !SUPPORTED_MIME_TYPES.includes(file.type)) {
+      toast.error(`지원하지 않는 파일 형식입니다. 지원 형식: ${SUPPORTED_EXTENSIONS.join(", ")}`);
       return false;
     }
     return true;
   };
 
-  // ── 업로드 시작 (버튼 클릭 시) ─────────────────────
+  // ── 업로드 시작 ────────────────────────────────────
   const startUpload = async () => {
     if (!uploadedFile) return;
-
     setUploading(true);
     setUploadProgress(0);
     setUploadStatus("uploading");
     setUploadMessage("파일 업로드 중...");
 
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current);
-    }
-
+    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
     progressIntervalRef.current = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 90) {
-          if (progressIntervalRef.current) {
-            clearInterval(progressIntervalRef.current);
-          }
-          return 90;
-        }
+      setUploadProgress((prev) => {
+        if (prev >= 90) { clearInterval(progressIntervalRef.current!); return 90; }
         return prev + 2;
       });
     }, 500);
@@ -200,31 +226,25 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
       const formData = new FormData();
       formData.append("file", uploadedFile);
 
-      const response = await fetch(`/api/documents/upload`, {  // 엔드포인트 변경
+      const response = await fetch("/api/documents/upload", {
         method: "POST",
         body: formData,
-        credentials: "include", // 쿠키 포함
+        credentials: "include",
       });
 
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-      }
-
+      clearInterval(progressIntervalRef.current!);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       setUploadProgress(95);
       setUploadStatus("analyzing");
       setUploadMessage("AI 분석 중...");
 
-
-      // 백엔드 응답
       const data = await response.json();
-
       const docData = await getDocumentDetailAPI(data.document_id);
+
       setUploadProgress(100);
       setUploadStatus("complete");
       setUploadMessage("분석 완료! 상세 페이지로 이동합니다...");
-
       toast.success("파일이 성공적으로 업로드되고 분석되었습니다!");
 
       const newDoc: PDFDocument = {
@@ -234,18 +254,18 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
         date: docData.created_at?.split("T")[0] ?? new Date().toISOString().split("T")[0],
         summary: docData.summary ?? "요약 없음",
         pageCount: 0,
-        fileType: uploadedFile.name.split('.').pop()?.toLowerCase(),
+        fileType: uploadedFile.name.split(".").pop()?.toLowerCase(),
       };
 
-      setDocuments((prev) => [newDoc, ...prev]);
-
+      // 업로드 후 1페이지로 리셋해서 최신 목록 재조회
       setTimeout(() => {
         setSelectedDocument(newDoc);
         resetUploadState();
+        setPage(1);
+        fetchDocuments(1);
       }, 1000);
-
-    } catch (err) {
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+    } catch {
+      clearInterval(progressIntervalRef.current!);
       setUploadStatus("error");
       setUploadMessage("업로드 실패. 서버를 확인하세요.");
       toast.error("업로드 실패");
@@ -268,8 +288,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file) return;
-    if (!isValidFile(file)) return;
+    if (!file || !isValidFile(file)) return;
     setUploadedFile(file);
     setUploadStatus("idle");
     setUploadProgress(0);
@@ -282,23 +301,19 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
-    if (!file) return;
-    if (!isValidFile(file)) return;
+    if (!file || !isValidFile(file)) return;
     setUploadedFile(file);
     setUploadStatus("idle");
     setUploadProgress(0);
     setUploadMessage("");
   };
 
-  // ── 문서 상세 조회 ───────────────────────────────
+  // ── 문서 상세 조회 ────────────────────────────────
   const handleDocumentClick = async (doc: PDFDocument) => {
     setLoadingDocId(doc.id);
     try {
       const detail = await getDocumentDetailAPI(Number(doc.id));
-      setSelectedDocument({
-        ...doc,
-        summary: detail.summary ?? "",
-      });
+      setSelectedDocument({ ...doc, summary: detail.summary ?? "" });
     } catch {
       toast.error("문서 정보를 불러오지 못했습니다.");
     } finally {
@@ -306,13 +321,16 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     }
   };
 
-  // ── 문서 CRUD ────────────────────────────────────
+  // ── 문서 삭제 ─────────────────────────────────────
   const handleDeleteDocument = async (id: string) => {
     try {
       await documentdeleteAPI(Number(id));
-      setDocuments((prev) => prev.filter((doc) => doc.id !== id));
       toast.success("문서가 삭제되었습니다");
       setSelectedDocument(null);
+      // 삭제 후 현재 페이지 재조회 (현재 페이지가 비면 이전 페이지로)
+      const nextPage = documents.length === 1 && page > 1 ? page - 1 : page;
+      setPage(nextPage);
+      if (nextPage === page) fetchDocuments(page);
     } catch {
       toast.error("문서 삭제에 실패했습니다.");
     }
@@ -324,60 +342,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     setSelectedDocument(null);
   };
 
-  // ── 정렬·필터 ─────────────────────────────────────
-  const filteredDocuments = documents.filter(
-    (doc) =>
-      doc.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.summary.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const sortedDocuments = [...filteredDocuments].sort((a, b) => {
-    switch (sortBy) {
-      case "latest": return new Date(b.date).getTime() - new Date(a.date).getTime();
-      case "oldest": return new Date(a.date).getTime() - new Date(b.date).getTime();
-      case "name-asc": return a.fileName.localeCompare(b.fileName);
-      case "name-desc": return b.fileName.localeCompare(a.fileName);
-      case "date-asc": return new Date(a.date).getTime() - new Date(b.date).getTime();
-      case "date-desc": return new Date(b.date).getTime() - new Date(a.date).getTime();
-      default: return 0;
-    }
-  });
-
-  const categories = ["전체", "법안", "발표자료", "교육자료", "기술문서", "뉴스/기사", "일반문서", "기타"];
-
-  const getCategoryDocuments = (category: string) =>
-    category === "전체" ? sortedDocuments : sortedDocuments.filter((d) => d.category === category);
-
-  const handleTabChange = (value: string) => {
-    setActiveTab(value);
-    if (!categoryPage[value]) {
-      setCategoryPage(prev => ({ ...prev, [value]: 1 }));
-    }
-  };
-
-  const setPageForCategory = (category: string, page: number) => {
-    setCategoryPage(prev => ({ ...prev, [category]: page }));
-  };
-
-  const getCurrentTabDocuments = () => {
-    const currentCategoryDocs = getCategoryDocuments(activeTab);
-    const currentPage = categoryPage[activeTab] || 1;
-    return currentCategoryDocs.slice(
-      (currentPage - 1) * itemsPerPage,
-      currentPage * itemsPerPage
-    );
-  };
-
-  const handleSelectAllInCurrentTab = (checked: boolean) => {
-    const currentDocs = getCurrentTabDocuments();
-    if (checked) {
-      setSelectedIds(currentDocs.map(d => d.id));
-    } else {
-      setSelectedIds([]);
-    }
-  };
-
+  // ── 선택 삭제 ─────────────────────────────────────
   const handleDeleteSelected = async () => {
     if (selectedIds.length === 0) { toast.error("삭제할 문서를 선택해주세요"); return; }
     if (!confirm(`선택한 ${selectedIds.length}개의 문서를 삭제하시겠습니까?`)) return;
@@ -385,18 +350,24 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     const results = await Promise.allSettled(
       selectedIds.map((id) => documentdeleteAPI(Number(id)))
     );
-
     const succeeded = selectedIds.filter((_, i) => results[i].status === "fulfilled");
     const failCount = results.length - succeeded.length;
 
-    setDocuments((prev) => prev.filter((doc) => !succeeded.includes(doc.id)));
     setSelectedIds([]);
-
     if (succeeded.length > 0) toast.success(`${succeeded.length}개의 문서가 삭제되었습니다`);
     if (failCount > 0) toast.error(`${failCount}개의 문서 삭제에 실패했습니다.`);
+
+    const nextPage = succeeded.length >= documents.length && page > 1 ? page - 1 : page;
+    setPage(nextPage);
+    if (nextPage === page) fetchDocuments(page);
   };
 
-  // 상세 보기 화면
+  const handleLogout = async () => {
+    try { await logoutApi(); } catch {}
+    onLogout();
+  };
+
+  // ── 상세 보기 ─────────────────────────────────────
   if (selectedDocument) {
     return (
       <PDFDetailView
@@ -410,7 +381,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
 
   // ── 문서 카드 렌더러 ──────────────────────────────
   const renderDocCard = (doc: PDFDocument) => {
-    const Icon = categoryIcons[doc.category] || getFileIcon(doc.fileName);
+    const Icon = categoryIcons[doc.category] || FileText;
     const colorClass = categoryColors[doc.category] || categoryColors["기타"];
     return (
       <Card
@@ -422,18 +393,13 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
             <Checkbox
               checked={selectedIds.includes(doc.id)}
               onCheckedChange={(checked) => {
-                if (checked) {
-                  setSelectedIds(prev => [...prev, doc.id]);
-                } else {
-                  setSelectedIds(prev => prev.filter(id => id !== doc.id));
-                }
+                setSelectedIds((prev) =>
+                  checked ? [...prev, doc.id] : prev.filter((id) => id !== doc.id)
+                );
               }}
               onClick={(e) => e.stopPropagation()}
             />
-            <div
-              className="flex-1 flex justify-between items-start"
-              onClick={() => handleDocumentClick(doc)}
-            >
+            <div className="flex-1 flex justify-between items-start" onClick={() => handleDocumentClick(doc)}>
               <div className="flex-1">
                 <CardTitle className="flex items-center gap-2 mb-2">
                   {loadingDocId === doc.id
@@ -447,7 +413,6 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
               <div className="flex flex-col items-end gap-2 ml-4">
                 <Badge className={colorClass + " border"}>{doc.category}</Badge>
                 <span className="text-xs text-muted-foreground">{doc.date}</span>
-                <span className="text-xs text-muted-foreground">{doc.pageCount} 페이지</span>
               </div>
             </div>
           </div>
@@ -456,25 +421,18 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     );
   };
 
-  // ── 현재 탭의 페이지네이션 정보 ────────────────────
-  const currentTabDocs = getCurrentTabDocuments();
-  const currentTabTotal = getCategoryDocuments(activeTab).length;
-  const currentTabTotalPages = Math.ceil(currentTabTotal / itemsPerPage);
-  const currentTabPage = categoryPage[activeTab] || 1;
-
-  // 업로드 진행 중일 때 표시할 컴포넌트
+  // ── 업로드 진행 카드 ───────────────────────────────
   const UploadProgressCard = () => (
     <Card className="mb-6 border-amber-500 shadow-lg bg-gradient-to-br from-blue-50 to-amber-50/30">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-blue-900">
-          {uploadStatus === "uploading" && <Loader2 className="w-5 h-5 animate-spin text-amber-600" />}
-          {uploadStatus === "analyzing" && <Loader2 className="w-5 h-5 animate-spin text-amber-600" />}
+          {(uploadStatus === "uploading" || uploadStatus === "analyzing") && <Loader2 className="w-5 h-5 animate-spin text-amber-600" />}
           {uploadStatus === "complete" && <CheckCircle2 className="w-5 h-5 text-green-600" />}
           {uploadStatus === "error" && <XCircle className="w-5 h-5 text-red-600" />}
           파일 업로드 진행 상황
         </CardTitle>
         <CardDescription>
-          {uploadedFile?.name} ({(uploadedFile?.size || 0) / 1024 / 1024} MB)
+          {uploadedFile?.name} ({((uploadedFile?.size || 0) / 1024 / 1024).toFixed(2)} MB)
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -490,9 +448,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
           </div>
           <Progress value={uploadProgress} className="h-2" />
         </div>
-        {uploadMessage && (
-          <p className="text-sm text-slate-500">{uploadMessage}</p>
-        )}
+        {uploadMessage && <p className="text-sm text-slate-500">{uploadMessage}</p>}
       </CardContent>
     </Card>
   );
@@ -510,12 +466,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
             <span className="text-sm text-amber-200">
               환영합니다, <span className="font-semibold text-white">{userName}</span>님
             </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleLogout}
-              className="border-black/50 text-black hover:bg-white/10"
-            >
+            <Button variant="outline" size="sm" onClick={handleLogout} className="border-black/50 text-black hover:bg-white/10">
               <LogOut className="w-4 h-4 mr-2" />로그아웃
             </Button>
           </div>
@@ -523,20 +474,12 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
+        <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.hwp,.ppt,.pptx" onChange={handleFileSelect} style={{ display: "none" }} />
 
-        {/* 숨겨진 file input - 다양한 파일 형식 지원 */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pdf,.doc,.docx,.hwp,.ppt,.pptx"
-          onChange={handleFileSelect}
-          style={{ display: "none" }}
-        />
-
-        {/* ── 업로드 진행률 표시 (활성화 시) ── */}
+        {/* 업로드 진행 카드 */}
         {(uploadStatus !== "idle" || uploadedFile) && <UploadProgressCard />}
 
-        {/* ── 파일 선택 카드 (진행 중이 아닐 때만 표시) ── */}
+        {/* 파일 선택 영역 */}
         {uploadStatus === "idle" && !uploading && !uploadedFile && (
           <div className="mb-6 slide-in-bottom">
             <div
@@ -544,34 +487,30 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-xl transition-all ${isDragging
-                ? "border-amber-500 bg-amber-50 cursor-copy"
-                : "border-blue-900/30 bg-gradient-to-br from-blue-900/5 to-amber-500/5 hover:from-blue-900/10 hover:to-amber-500/10 hover:shadow-xl cursor-pointer"
-                } shadow-lg`}
+              className={`border-2 border-dashed rounded-xl transition-all ${
+                isDragging
+                  ? "border-amber-500 bg-amber-50 cursor-copy"
+                  : "border-blue-900/30 bg-gradient-to-br from-blue-900/5 to-amber-500/5 hover:from-blue-900/10 hover:to-amber-500/10 hover:shadow-xl cursor-pointer"
+              } shadow-lg`}
             >
               <div className="flex flex-col items-center justify-center py-8 gap-3 pointer-events-none">
                 <Upload className="w-10 h-10 text-blue-900/50" />
                 <div className="text-center">
                   <p className="font-semibold text-blue-900">문서 파일 선택</p>
-                  <p className="text-sm text-slate-500 mt-1">
-                    클릭하거나 파일을 드래그하세요
-                  </p>
-                  <p className="text-xs text-slate-400 mt-2">
-                    지원 형식: PDF, DOC, DOCX, HWP, PPT, PPTX
-                  </p>
+                  <p className="text-sm text-slate-500 mt-1">클릭하거나 파일을 드래그하세요</p>
+                  <p className="text-xs text-slate-400 mt-2">지원 형식: PDF, DOC, DOCX, HWP, PPT, PPTX</p>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* ── 선택된 파일 정보 + 분석 시작 버튼 ── */}
+        {/* 선택된 파일 + 분석 시작 */}
         {uploadedFile && uploadStatus === "idle" && !uploading && (
           <Card className="mb-6 border-amber-500 bg-gradient-to-br from-amber-50/30 to-blue-50/30">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-blue-900">
-                <FileText className="w-5 h-5 text-amber-600" />
-                선택된 파일
+                <FileText className="w-5 h-5 text-amber-600" />선택된 파일
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -580,48 +519,35 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
                   <p className="font-semibold">{uploadedFile.name}</p>
                   <p className="text-sm text-slate-500">{(uploadedFile.size / 1024).toFixed(1)} KB</p>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setUploadedFile(null);
-                    setUploadStatus("idle");
-                  }}
-                  className="border-red-300 text-red-600 hover:bg-red-50"
-                >
+                <Button variant="outline" size="sm" onClick={() => { setUploadedFile(null); setUploadStatus("idle"); }} className="border-red-300 text-red-600 hover:bg-red-50">
                   취소
                 </Button>
               </div>
-              <Button
-                onClick={startUpload}
-                className="w-full bg-gradient-to-r from-blue-900 to-indigo-800 hover:from-blue-800 hover:to-indigo-700 text-white h-11"
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                분석 시작
+              <Button onClick={startUpload} className="w-full bg-gradient-to-r from-blue-900 to-indigo-800 hover:from-blue-800 hover:to-indigo-700 text-white h-11">
+                <Upload className="w-4 h-4 mr-2" />분석 시작
               </Button>
             </CardContent>
           </Card>
         )}
 
-        {/* ── 카테고리 통계 카드 ── */}
+        {/* 카테고리 통계 카드 */}
         <div className="mb-6 slide-in-bottom stagger-1">
           <Card className="bg-white/90 backdrop-blur shadow-lg border-blue-900/10 p-4">
             <div className="overflow-x-auto">
               <div className="flex gap-3">
                 {categories.map((category) => {
-                  const count = category === "전체"
-                    ? documents.length
-                    : documents.filter((d) => d.category === category).length;
+                  const count = getCategoryCount(category);
                   const Icon = categoryIcons[category] || BookOpen;
                   const isActive = activeTab === category;
                   return (
                     <div
                       key={category}
                       onClick={() => handleTabChange(category)}
-                      className={`text-center p-3 rounded-lg transition-all cursor-pointer flex-1 min-w-[90px] ${isActive
-                        ? "bg-gradient-to-br from-amber-100 to-amber-50 border border-amber-500 shadow-md"
-                        : "bg-gradient-to-br from-white to-slate-50 border border-blue-900/10 hover:shadow-md hover:border-amber-500/30"
-                        }`}
+                      className={`text-center p-3 rounded-lg transition-all cursor-pointer flex-1 min-w-[90px] ${
+                        isActive
+                          ? "bg-gradient-to-br from-amber-100 to-amber-50 border border-amber-500 shadow-md"
+                          : "bg-gradient-to-br from-white to-slate-50 border border-blue-900/10 hover:shadow-md hover:border-amber-500/30"
+                      }`}
                     >
                       <Icon className={`w-6 h-6 mx-auto mb-2 ${isActive ? "text-amber-700" : "text-blue-900"}`} />
                       <div className={`text-sm font-medium ${isActive ? "text-amber-800" : "text-blue-900"}`}>{category}</div>
@@ -634,18 +560,14 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
           </Card>
         </div>
 
-        {/* ── 검색 및 필터 ── */}
+        {/* 검색 및 정렬 */}
         <div className="mb-6 flex flex-col md:flex-row gap-4 slide-in-bottom stagger-1">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-blue-900/50" />
             <Input
-              placeholder="파일명, 카테고리, 내용으로 검색..."
+              placeholder="파일명, 카테고리로 검색..."
               value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCategoryPage({ "전체": 1 });
-                setActiveTab("전체");
-              }}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="pl-10 border-blue-900/20 focus:border-amber-500 focus:ring-amber-500/20"
             />
           </div>
@@ -659,8 +581,6 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
               <SelectItem value="oldest">오래된순</SelectItem>
               <SelectItem value="name-asc">이름 (가나다순)</SelectItem>
               <SelectItem value="name-desc">이름 (역순)</SelectItem>
-              <SelectItem value="date-asc">날짜 (오름차순)</SelectItem>
-              <SelectItem value="date-desc">날짜 (내림차순)</SelectItem>
             </SelectContent>
           </Select>
           {selectedIds.length > 0 && (
@@ -670,21 +590,31 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
           )}
         </div>
 
-        {/* ── 카테고리 탭 + 문서 목록 ── */}
+        {/* 문서 목록 */}
         <div className="slide-in-bottom stagger-2">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-blue-900 font-semibold">내 문서 ({sortedDocuments.length})</h2>
-            {currentTabDocs.length > 0 && (
+            <h2 className="text-blue-900 font-semibold">
+              내 문서 ({total}개)
+              {totalPages > 1 && (
+                <span className="text-sm font-normal text-slate-500 ml-2">
+                  — {page}페이지 / {totalPages}페이지
+                </span>
+              )}
+            </h2>
+            {displayedDocuments.length > 0 && (
               <div className="flex items-center gap-2">
                 <Checkbox
-                  checked={selectedIds.length === currentTabDocs.length && currentTabDocs.length > 0}
-                  onCheckedChange={handleSelectAllInCurrentTab}
+                  checked={selectedIds.length === displayedDocuments.length && displayedDocuments.length > 0}
+                  onCheckedChange={(checked) =>
+                    setSelectedIds(checked ? displayedDocuments.map((d) => d.id) : [])
+                  }
                 />
                 <span className="text-sm text-slate-600">전체 선택</span>
               </div>
             )}
           </div>
 
+          {/* 탭 (카테고리 필터 역할, 페이징은 백엔드 담당) */}
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <TabsList
               className="grid w-full mb-6 bg-gradient-to-r from-blue-900/10 to-indigo-900/10 border border-blue-900/20 rounded-xl p-[3px]"
@@ -700,10 +630,8 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
                 </TabsTrigger>
               ))}
             </TabsList>
-
             {categories.map((category) => (
-              <TabsContent key={category} value={category}>
-              </TabsContent>
+              <TabsContent key={category} value={category} />
             ))}
           </Tabs>
 
@@ -714,7 +642,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
                 <p>문서 목록을 불러오는 중...</p>
               </CardContent>
             </Card>
-          ) : currentTabDocs.length === 0 ? (
+          ) : displayedDocuments.length === 0 ? (
             <Card className="shadow-lg border-blue-900/10 bg-white/90 backdrop-blur">
               <CardContent className="py-12 text-center text-slate-600">
                 <FileText className="w-12 h-12 mx-auto mb-4 opacity-50 text-blue-900" />
@@ -723,30 +651,58 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
             </Card>
           ) : (
             <div className="grid gap-4">
-              {currentTabDocs.map(renderDocCard)}
+              {displayedDocuments.map(renderDocCard)}
             </div>
           )}
 
-          {currentTabTotalPages > 1 && (
-            <div className="flex justify-center items-center gap-2 mt-6">
+          {/* ── 백엔드 페이지네이션 UI ── */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-3 mt-6">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPageForCategory(activeTab, currentTabPage - 1)}
-                disabled={currentTabPage === 1}
-                className="border-blue-900/20 hover:bg-blue-900/10 disabled:opacity-50"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1 || isLoadingDocs}
+                className="border-blue-900/20 hover:bg-blue-900/10 disabled:opacity-40"
               >
                 <ChevronLeft className="w-4 h-4" />
               </Button>
-              <span className="text-sm font-medium text-blue-900">
-                <span className="text-amber-600">{currentTabPage}</span> / {currentTabTotalPages}
-              </span>
+
+              {/* 페이지 번호 버튼 (최대 5개) */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                .reduce<(number | "...")[]>((acc, p, idx, arr) => {
+                  if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("...");
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((item, idx) =>
+                  item === "..." ? (
+                    <span key={`ellipsis-${idx}`} className="text-slate-400 text-sm px-1">…</span>
+                  ) : (
+                    <Button
+                      key={item}
+                      variant={page === item ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setPage(item as number)}
+                      disabled={isLoadingDocs}
+                      className={
+                        page === item
+                          ? "bg-blue-900 text-white border-blue-900 w-9"
+                          : "border-blue-900/20 hover:bg-blue-900/10 w-9"
+                      }
+                    >
+                      {item}
+                    </Button>
+                  )
+                )}
+
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPageForCategory(activeTab, currentTabPage + 1)}
-                disabled={currentTabPage === currentTabTotalPages}
-                className="border-blue-900/20 hover:bg-blue-900/10 disabled:opacity-50"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages || isLoadingDocs}
+                className="border-blue-900/20 hover:bg-blue-900/10 disabled:opacity-40"
               >
                 <ChevronRight className="w-4 h-4" />
               </Button>
