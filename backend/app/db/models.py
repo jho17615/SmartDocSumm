@@ -42,7 +42,6 @@ class Summary(Base):
     __tablename__ = "summaries"
     id = Column(Integer, primary_key=True, index=True)
     document_id = Column(Integer, ForeignKey("documents.id"))
-    type =  Column(String(50), default="전체요약")
     content = Column(Text, nullable=False)
     is_deleted = Column(Boolean, default=False)
     created_at = Column(DateTime, default=get_now)
