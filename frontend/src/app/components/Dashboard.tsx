@@ -40,7 +40,7 @@ import { PDFDetailView } from "./PDFDetailView";
 import { toast } from "sonner";
 import "../../styles/transitions.css";
 import { logoutApi } from "../api/auth";
-import { getDocumentListAPI } from "../api/document";
+import { getDocumentListAPI, getDocumentDetailAPI, documentdeleteAPI } from "../api/document";
 
 const FASTAPI_URL = "";
 
@@ -135,10 +135,11 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
 
   const itemsPerPage = 5;
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  let progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [documents, setDocuments] = useState<PDFDocument[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(true);
+  const [loadingDocId, setLoadingDocId] = useState<string | null>(null);
 
   useEffect(() => {
     getDocumentListAPI()
@@ -219,13 +220,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
       // 백엔드 응답
       const data = await response.json();
 
-      const docResponse = await fetch(`/api/documents/${data.document_id}`, {
-        credentials: "include",
-      });
-
-      if (!docResponse.ok) throw new Error("문서 조회 실패");
-
-      const docData = await docResponse.json();
+      const docData = await getDocumentDetailAPI(data.document_id);
       setUploadProgress(100);
       setUploadStatus("complete");
       setUploadMessage("분석 완료! 상세 페이지로 이동합니다...");
@@ -295,11 +290,32 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     setUploadMessage("");
   };
 
+  // ── 문서 상세 조회 ───────────────────────────────
+  const handleDocumentClick = async (doc: PDFDocument) => {
+    setLoadingDocId(doc.id);
+    try {
+      const detail = await getDocumentDetailAPI(Number(doc.id));
+      setSelectedDocument({
+        ...doc,
+        summary: detail.summary ?? "",
+      });
+    } catch {
+      toast.error("문서 정보를 불러오지 못했습니다.");
+    } finally {
+      setLoadingDocId(null);
+    }
+  };
+
   // ── 문서 CRUD ────────────────────────────────────
-  const handleDeleteDocument = (id: string) => {
-    setDocuments((prev) => prev.filter((doc) => doc.id !== id));
-    toast.success("문서가 삭제되었습니다");
-    setSelectedDocument(null);
+  const handleDeleteDocument = async (id: string) => {
+    try {
+      await documentdeleteAPI(Number(id));
+      setDocuments((prev) => prev.filter((doc) => doc.id !== id));
+      toast.success("문서가 삭제되었습니다");
+      setSelectedDocument(null);
+    } catch {
+      toast.error("문서 삭제에 실패했습니다.");
+    }
   };
 
   const handleUpdateDocument = (updatedDoc: PDFDocument) => {
@@ -362,13 +378,22 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     }
   };
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = async () => {
     if (selectedIds.length === 0) { toast.error("삭제할 문서를 선택해주세요"); return; }
-    if (confirm(`선택한 ${selectedIds.length}개의 문서를 삭제하시겠습니까?`)) {
-      setDocuments((prev) => prev.filter((doc) => !selectedIds.includes(doc.id)));
-      setSelectedIds([]);
-      toast.success(`${selectedIds.length}개의 문서가 삭제되었습니다`);
-    }
+    if (!confirm(`선택한 ${selectedIds.length}개의 문서를 삭제하시겠습니까?`)) return;
+
+    const results = await Promise.allSettled(
+      selectedIds.map((id) => documentdeleteAPI(Number(id)))
+    );
+
+    const succeeded = selectedIds.filter((_, i) => results[i].status === "fulfilled");
+    const failCount = results.length - succeeded.length;
+
+    setDocuments((prev) => prev.filter((doc) => !succeeded.includes(doc.id)));
+    setSelectedIds([]);
+
+    if (succeeded.length > 0) toast.success(`${succeeded.length}개의 문서가 삭제되었습니다`);
+    if (failCount > 0) toast.error(`${failCount}개의 문서 삭제에 실패했습니다.`);
   };
 
   // 상세 보기 화면
@@ -407,11 +432,14 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
             />
             <div
               className="flex-1 flex justify-between items-start"
-              onClick={() => setSelectedDocument(doc)}
+              onClick={() => handleDocumentClick(doc)}
             >
               <div className="flex-1">
                 <CardTitle className="flex items-center gap-2 mb-2">
-                  <Icon className="w-5 h-5" />
+                  {loadingDocId === doc.id
+                    ? <Loader2 className="w-5 h-5 animate-spin text-amber-600" />
+                    : <Icon className="w-5 h-5" />
+                  }
                   {doc.fileName}
                 </CardTitle>
                 <CardDescription className="mt-2">{doc.summary}</CardDescription>

@@ -41,6 +41,7 @@ import {
   X
 } from "lucide-react";
 import "../../styles/transitions.css";
+import { documentModifyAPI } from "../api/document";
 
 interface PDFDocument {
   id: string;
@@ -49,7 +50,7 @@ interface PDFDocument {
   date: string;
   summary: string;
   pageCount: number;
-  // ✅ AI 분석 결과도 문서에 포함
+  content?: string;
   analysisResults?: {
     confidence: number;
     fullSummary: string;
@@ -130,7 +131,7 @@ export function PDFDetailView({ document, onBack, onDelete, onUpdate }: PDFDetai
   const [analysisResults, setAnalysisResults] = useState<AnalysisResults>(
     document.analysisResults || {
       ...defaultAnalysisResults,
-      fullSummary: document.summary + " 이 문서는 전문적인 내용을 담고 있으며, 주요 개념과 실무 적용 방법을 상세히 설명하고 있습니다.",
+      fullSummary: document.summary ?? "",
       pageSummaries: Array.from({ length: Math.min(document.pageCount, 10) }, (_, i) => ({
         page: i + 1,
         summary: `${i + 1}페이지: 문서의 주요 내용을 분석한 결과입니다.`
@@ -141,14 +142,25 @@ export function PDFDetailView({ document, onBack, onDelete, onUpdate }: PDFDetai
   const Icon = categoryIcons[document.category] || FileText;
   const colorClass = categoryColors[document.category] || categoryColors["기타"];
 
-  // ✅ 저장 시 분석 결과도 함께 저장
-  const handleSaveEdit = () => {
-    const updatedDoc: PDFDocument = {
-      ...editedDoc,
-      analysisResults: analysisResults  // 분석 결과 포함
-    };
-    onUpdate(updatedDoc);
-    setIsEditing(false);
+  // ✅ 저장 시 API 호출 후 로컬 상태 업데이트
+  const handleSaveEdit = async () => {
+    try {
+      await documentModifyAPI(
+        Number(document.id),
+        editedDoc.summary ?? "",
+        editedDoc.fileName,
+        editedDoc.category
+      );
+      const updatedDoc: PDFDocument = {
+        ...editedDoc,
+        analysisResults: analysisResults
+      };
+      onUpdate(updatedDoc);
+      setIsEditing(false);
+    } catch (error) {
+      console.error("문서 수정 실패:", error);
+      alert("문서 수정에 실패했습니다.");
+    }
   };
 
   const handleCancelEdit = () => {
@@ -368,7 +380,7 @@ export function PDFDetailView({ document, onBack, onDelete, onUpdate }: PDFDetai
         </Card>
 
         {/* AI 분석 결과 - 주요 인사이트 */}
-        <Card className="mb-6 slide-in-bottom stagger-1 shadow-lg border-amber-500/30 bg-gradient-to-br from-white to-amber-50/30">
+{/*     <Card className="mb-6 slide-in-bottom stagger-1 shadow-lg border-amber-500/30 bg-gradient-to-br from-white to-amber-50/30">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-blue-900">
               <BarChart3 className="w-5 h-5 text-amber-600" />
@@ -407,10 +419,10 @@ export function PDFDetailView({ document, onBack, onDelete, onUpdate }: PDFDetai
               </div>
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
 
-        {/* 탭 영역 */}
-        <Tabs defaultValue="full" className="w-full slide-in-bottom stagger-2">
+        
+{/*        <Tabs defaultValue="full" className="w-full slide-in-bottom stagger-2">
           <TabsList className="grid w-full grid-cols-4 bg-gradient-to-r from-blue-900/10 to-indigo-900/10 border border-blue-900/20">
             <TabsTrigger value="full">전체 요약</TabsTrigger>
             <TabsTrigger value="pages">페이지별</TabsTrigger>
@@ -418,7 +430,7 @@ export function PDFDetailView({ document, onBack, onDelete, onUpdate }: PDFDetai
             <TabsTrigger value="percent">구간별</TabsTrigger>
           </TabsList>
 
-          {/* 전체 요약 */}
+          
           <TabsContent value="full">
             <Card className="shadow-lg border-blue-900/10 bg-white/90 backdrop-blur">
               <CardHeader>
@@ -442,7 +454,7 @@ export function PDFDetailView({ document, onBack, onDelete, onUpdate }: PDFDetai
             </Card>
           </TabsContent>
 
-          {/* 페이지별 요약 */}
+          
           <TabsContent value="pages">
             <Card className="shadow-lg border-blue-900/10 bg-white/90 backdrop-blur">
               <CardHeader>
@@ -476,7 +488,7 @@ export function PDFDetailView({ document, onBack, onDelete, onUpdate }: PDFDetai
             </Card>
           </TabsContent>
 
-          {/* 소제목별 요약 */}
+          
           <TabsContent value="sections">
             <Card className="shadow-lg border-blue-900/10 bg-white/90 backdrop-blur">
               <CardHeader>
@@ -510,7 +522,7 @@ export function PDFDetailView({ document, onBack, onDelete, onUpdate }: PDFDetai
             </Card>
           </TabsContent>
 
-          {/* 구간별 요약 */}
+          
           <TabsContent value="percent">
             <Card className="shadow-lg border-blue-900/10 bg-white/90 backdrop-blur">
               <CardHeader>
@@ -545,7 +557,7 @@ export function PDFDetailView({ document, onBack, onDelete, onUpdate }: PDFDetai
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
+        </Tabs> */}
       </main>
 
       {/* 삭제 확인 다이얼로그 */}

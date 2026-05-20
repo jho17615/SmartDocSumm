@@ -30,3 +30,15 @@ httpx
 pytest
 pytest-asyncio
 pydantic
+
+olefile
+
+python-docx
+opencv-python
+numpy 
+Pillow 
+lxml 
+easyocr 
+mammoth 
+ollama 
+sqlalchemy
