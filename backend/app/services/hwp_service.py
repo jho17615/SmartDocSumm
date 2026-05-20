@@ -23,8 +23,6 @@ def get_ocr_reader():
     return _OCR_READER
 
 
-# ── 압축 여부 ──────────────────────────────────────────
-
 def check_hwp_compressed(ole):
     try:
         header = ole.openstream('FileHeader').read()
@@ -34,10 +32,7 @@ def check_hwp_compressed(ole):
         return True
 
 
-# ── 레코드 파서 ────────────────────────────────────────
-
 def iter_records(data):
-    """바이너리 데이터에서 (tag_id, level, record) 순서대로 yield"""
     offset = 0
     while offset + 4 <= len(data):
         hval = struct.unpack_from('<I', data, offset)[0]
@@ -55,13 +50,11 @@ def iter_records(data):
         yield tag_id, level, record
 
 
-# ── 텍스트 추출 (본문 + 도형 + 표) ────────────────────
-
-PARA_HEADER_TAG = 66   # 문단 헤더
-PARA_TEXT_TAG   = 67   # 문단 텍스트
-SHAPE_TAG       = 71   # 도형 컨테이너
-TABLE_TAG       = 34   # 표
-CELL_TAG        = 35   # 셀
+PARA_HEADER_TAG = 66
+PARA_TEXT_TAG   = 67
+SHAPE_TAG       = 71
+TABLE_TAG       = 34
+CELL_TAG        = 35
 
 def decode_para_text(record: bytes) -> str:
     try:
@@ -81,7 +74,6 @@ def decode_para_text(record: bytes) -> str:
 
 
 def extract_text(ole, is_compressed):
-    """본문 + 도형 + 표 텍스트 분리 추출"""
     body_paragraphs = []
     shape_groups    = []
     table_groups    = []
@@ -101,17 +93,13 @@ def extract_text(ole, is_compressed):
         else:
             data = raw
 
-        # 상태 머신
         current_para  = []
         current_shape = []
-        current_row   = []   # 현재 표 행
-        current_table = []   # 현재 표 전체
-
-        mode = 'body'   # 'body' | 'shape' | 'table'
+        current_row   = []
+        current_table = []
+        mode = 'body'
 
         for tag_id, level, record in iter_records(data):
-
-            # ── 표 시작 ──────────────────────────────
             if tag_id == TABLE_TAG and level == 1:
                 if current_para:
                     body_paragraphs.append(''.join(current_para))
@@ -121,7 +109,6 @@ def extract_text(ole, is_compressed):
                 current_row   = []
                 continue
 
-            # ── 도형 시작 ─────────────────────────────
             if tag_id == SHAPE_TAG and level == 1:
                 if current_para:
                     body_paragraphs.append(''.join(current_para))
@@ -130,7 +117,6 @@ def extract_text(ole, is_compressed):
                 current_shape = []
                 continue
 
-            # ── 본문 문단 헤더 (level 0) → 도형/표 종료 신호 ──
             if tag_id == PARA_HEADER_TAG and level == 0:
                 if mode == 'shape' and current_shape:
                     shape_groups.append('\n'.join(current_shape))
@@ -148,14 +134,12 @@ def extract_text(ole, is_compressed):
                     current_para = []
                 continue
 
-            # ── 셀 구분 (표 안에서 열 구분) ──────────
             if tag_id == CELL_TAG and mode == 'table':
                 if current_row:
                     current_table.append(' | '.join(current_row))
                     current_row = []
                 continue
 
-            # ── 텍스트 레코드 ─────────────────────────
             if tag_id == PARA_TEXT_TAG:
                 text = decode_para_text(record)
                 if not text:
@@ -167,7 +151,6 @@ def extract_text(ole, is_compressed):
                 elif mode == 'table':
                     current_row.append(text)
 
-        # 섹션 마지막 잔여 데이터 flush
         if current_para:
             body_paragraphs.append(''.join(current_para))
         if current_shape:
@@ -211,8 +194,6 @@ def clean_hwp_text(text):
             cleaned_lines.append(cleaned)
     return '\n'.join(cleaned_lines)
 
-
-# ── 이미지 추출 ────────────────────────────────────────
 
 IMAGE_SIGNATURES = {
     b'\xff\xd8\xff': 'jpg',
@@ -261,8 +242,6 @@ def extract_images_from_ole(ole):
     return images
 
 
-# ── OCR ────────────────────────────────────────────────
-
 def preprocess_image(img):
     from PIL import ImageEnhance
     if img.mode not in ('RGB', 'L'):
@@ -289,51 +268,7 @@ def ocr_image(img_data):
         return f"[OCR 실패: {e}]"
 
 
-# ── 저장 헬퍼 ──────────────────────────────────────────
-
-OUTPUT_DIR = r"C:\Users\2class_17\Desktop\server_hwp"
-
-def save_result(filename_base: str, body: str, shapes: str, tables: str, ocr_texts: list[str]):
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    out_path = os.path.join(OUTPUT_DIR, f"{filename_base}_추출결과.txt")
-
-    lines = []
-    lines.append("=" * 60)
-    lines.append(f"HWP 추출 결과: {filename_base}")
-    lines.append("=" * 60)
-
-    lines.append("\n【 본문 텍스트 】")
-    lines.append("-" * 40)
-    lines.append(body if body.strip() else "(없음)")
-
-    if shapes.strip():
-        lines.append("\n【 도형 텍스트 】")
-        lines.append("-" * 40)
-        lines.append(shapes)
-
-    if tables.strip():
-        lines.append("\n【 표 텍스트 】")
-        lines.append("-" * 40)
-        lines.append(tables)
-
-    if ocr_texts:
-        lines.append("\n【 이미지 OCR 텍스트 】")
-        lines.append("-" * 40)
-        for i, t in enumerate(ocr_texts, 1):
-            lines.append(f"[이미지 {i}]")
-            lines.append(t)
-
-    with open(out_path, 'w', encoding='utf-8') as f:
-        f.write('\n'.join(lines))
-
-    print(f"✅ 저장 완료: {out_path}")
-    return out_path
-
-
-# ── document_service 진입점 ────────────────────────────
-
 def extract_text_from_hwp(file_path: str) -> str:
-    """document_service에서 호출 — 전체 텍스트 반환 + 결과 파일 저장"""
     ole = olefile.OleFileIO(file_path)
     is_compressed = check_hwp_compressed(ole)
     body_text, shape_text, table_text = extract_text(ole, is_compressed)
@@ -344,18 +279,12 @@ def extract_text_from_hwp(file_path: str) -> str:
     shape_text = clean_hwp_text(shape_text)
     table_text = clean_hwp_text(table_text)
 
-    # 이미지 OCR
     ocr_texts = []
     for img in images:
         ocr = ocr_image(img['data'])
         if ocr and len(ocr) > 3:
             ocr_texts.append(ocr)
 
-    # 테스트용 결과 파일 저장
-    filename_base = os.path.splitext(os.path.basename(file_path))[0]
-    save_result(filename_base, body_text, shape_text, table_text, ocr_texts)
-
-    # document_service로 반환할 통합 텍스트
     parts = [body_text]
     if shape_text.strip():
         parts.append(shape_text)
