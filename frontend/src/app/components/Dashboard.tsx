@@ -40,7 +40,7 @@ import { PDFDetailView } from "./PDFDetailView";
 import { toast } from "sonner";
 import "../../styles/transitions.css";
 import { logoutApi } from "../api/auth";
-import { getDocumentListAPI } from "../api/document";
+import { getDocumentListAPI, getDocumentDetailAPI } from "../api/document";
 
 const FASTAPI_URL = "";
 
@@ -139,6 +139,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
 
   const [documents, setDocuments] = useState<PDFDocument[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(true);
+  const [loadingDocId, setLoadingDocId] = useState<string | null>(null);
 
   useEffect(() => {
     getDocumentListAPI()
@@ -219,13 +220,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
       // 백엔드 응답
       const data = await response.json();
 
-      const docResponse = await fetch(`/api/documents/${data.document_id}`, {
-        credentials: "include",
-      });
-
-      if (!docResponse.ok) throw new Error("문서 조회 실패");
-
-      const docData = await docResponse.json();
+      const docData = await getDocumentDetailAPI(data.document_id);
       setUploadProgress(100);
       setUploadStatus("complete");
       setUploadMessage("분석 완료! 상세 페이지로 이동합니다...");
@@ -293,6 +288,22 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     setUploadStatus("idle");
     setUploadProgress(0);
     setUploadMessage("");
+  };
+
+  // ── 문서 상세 조회 ───────────────────────────────
+  const handleDocumentClick = async (doc: PDFDocument) => {
+    setLoadingDocId(doc.id);
+    try {
+      const detail = await getDocumentDetailAPI(Number(doc.id));
+      setSelectedDocument({
+        ...doc,
+        summary: detail.summary ?? "",
+      });
+    } catch {
+      toast.error("문서 정보를 불러오지 못했습니다.");
+    } finally {
+      setLoadingDocId(null);
+    }
   };
 
   // ── 문서 CRUD ────────────────────────────────────
@@ -407,11 +418,14 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
             />
             <div
               className="flex-1 flex justify-between items-start"
-              onClick={() => setSelectedDocument(doc)}
+              onClick={() => handleDocumentClick(doc)}
             >
               <div className="flex-1">
                 <CardTitle className="flex items-center gap-2 mb-2">
-                  <Icon className="w-5 h-5" />
+                  {loadingDocId === doc.id
+                    ? <Loader2 className="w-5 h-5 animate-spin text-amber-600" />
+                    : <Icon className="w-5 h-5" />
+                  }
                   {doc.fileName}
                 </CardTitle>
                 <CardDescription className="mt-2">{doc.summary}</CardDescription>
