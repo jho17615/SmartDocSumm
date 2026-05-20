@@ -34,3 +34,19 @@ export async function documentModifyAPI(documentId: number, content: string, tit
         throw error;
     }
 }
+
+
+export async function documentdeleteAPI(documentId: number) {
+    try {
+        const response = await fetch(`/api/documents/delete/${documentId}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+        });
+        if (!response.ok) throw new Error("문서 삭제 실패");
+        return await response.json();
+    } catch (error) {
+        console.error("documentModifyAPI 오류:", error);
+        throw error;
+    }
+}
