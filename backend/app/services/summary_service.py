@@ -4,7 +4,7 @@ class SummaryService:
     def __init__(self):
       self.model = "qwen2.5:3b-instruct-q4_K_S"
   
-    def summarize(self, text: str) -> str:
+    def summarize(self, text: str,category: str = None) -> str:
         prompt = f"""다음 텍스트를 한국어로 요약해줘:
 
           {text}
