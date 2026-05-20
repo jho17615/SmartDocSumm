@@ -9,7 +9,7 @@ from app.db.database import get_db
 from app.core.config import settings
 from app.services.auth_service import get_user
 from app.services.document_service import document_service
-from app.db.document import update_document
+from app.db.document import update_document, delete_document
 from app.schemas.document import DocumentUpdate
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -124,16 +124,8 @@ async def modify_document(
     document_id: int,
     document_data: DocumentUpdate,
     db: Session = Depends(get_db),
-    owner_id: int = Depends(get_current_user_id)
 ):
-    from app.db.models import Document, Summary
-    existing = db.query(Document).filter(
-        Document.id == document_id,
-        Document.owner_id == owner_id,
-        Document.is_deleted == False
-    ).first()
-    if not existing:
-        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
+    from app.db.models import Summary
 
     document = update_document(db, document_id, document_data)
     if not document:
@@ -147,5 +139,20 @@ async def modify_document(
         if summary:
             summary.content = document_data.summary
             db.commit()
+
+    return document
+
+
+@router.delete("/delete/{document_id}", status_code=status.HTTP_200_OK)
+async def modify_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+):
+
+
+    document = delete_document(db, document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail="삭제에 실패하였습니다.")
+
 
     return document
