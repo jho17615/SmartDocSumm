@@ -30,14 +30,20 @@ export async function signupAPI(email: string, password: string, name: string) {
 }
 
 export async function getMeAPI() {
-    const response = await fetch("/api/auth/me", {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-    });
+    try {
+        const response = await fetch("/api/auth/me", {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+        });
 
-    if (!response.ok) throw new Error("사용자 정보를 가져올 수 없습니다.");
-    return response.json();
+        if (!response.ok) return null;
+        const data = await response.json();
+        if (!data.authenticated) return null;
+        return data;
+    } catch {
+        return null;
+    }
 }
 
 
