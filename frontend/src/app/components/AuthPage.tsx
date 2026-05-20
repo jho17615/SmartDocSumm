@@ -63,12 +63,7 @@ export function AuthPage({ onLogin, onSignup }: AuthPageProps) {
 
   return (
     <div className={`auth-container ${isSignIn ? "sign-in" : "sign-up"}`}>
-      {/* 에러 메시지 */}
-      {error && (
-        <div style={{ color: "red", textAlign: "center", padding: "8px" }}>
-          {error}
-        </div>
-      )}
+
 
 
       {/* FORM SECTION */}
@@ -128,7 +123,6 @@ export function AuthPage({ onLogin, onSignup }: AuthPageProps) {
           </div>
         </div>
         {/* END SIGN UP */}
-
         {/* SIGN IN */}
         <div className="auth-col auth-align-items-center auth-flex-col sign-in">
           <div className="auth-form-wrapper auth-align-items-center">
@@ -153,6 +147,12 @@ export function AuthPage({ onLogin, onSignup }: AuthPageProps) {
                   required
                 />
               </div>
+              {/* 에러 메시지 */}
+              {error && (
+                <div style={{ color: "red", textAlign: "center", padding: "8px" }}>
+                  {error}
+                </div>
+              )}
               <button type="submit" disabled={loading}>
                 {loading ? "처리중..." : "Sign in"}
               </button>

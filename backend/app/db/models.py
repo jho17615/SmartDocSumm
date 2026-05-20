@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Index, Integer, String, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone, timedelta
 from app.db.database import Base
@@ -38,17 +38,11 @@ class Document(Base):
     summaries = relationship("Summary", back_populates="document")
 
 
-    __table_args__ = (
-        # 문서 목록 조회 (가장 자주 쓰는 쿼리)
-        Index("ix_document_owner_deleted", "owner_id", "is_deleted"),
-        # 카테고리 필터 조회
-        Index("ix_document_owner_category_deleted", "owner_id", "category", "is_deleted"),
-    )
-
 class Summary(Base):
     __tablename__ = "summaries"
     id = Column(Integer, primary_key=True, index=True)
     document_id = Column(Integer, ForeignKey("documents.id"))
+    type =  Column(String(50), default="전체요약")
     content = Column(Text, nullable=False)
     is_deleted = Column(Boolean, default=False)
     created_at = Column(DateTime, default=get_now)

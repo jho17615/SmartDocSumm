@@ -40,7 +40,7 @@ import { PDFDetailView } from "./PDFDetailView";
 import { toast } from "sonner";
 import "../../styles/transitions.css";
 import { logoutApi } from "../api/auth";
-import { getDocumentListAPI, getDocumentDetailAPI } from "../api/document";
+import { getDocumentListAPI, getDocumentDetailAPI, documentdeleteAPI } from "../api/document";
 
 const FASTAPI_URL = "";
 
@@ -135,7 +135,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
 
   const itemsPerPage = 5;
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  let progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [documents, setDocuments] = useState<PDFDocument[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(true);
@@ -307,10 +307,15 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
   };
 
   // ── 문서 CRUD ────────────────────────────────────
-  const handleDeleteDocument = (id: string) => {
-    setDocuments((prev) => prev.filter((doc) => doc.id !== id));
-    toast.success("문서가 삭제되었습니다");
-    setSelectedDocument(null);
+  const handleDeleteDocument = async (id: string) => {
+    try {
+      await documentdeleteAPI(Number(id));
+      setDocuments((prev) => prev.filter((doc) => doc.id !== id));
+      toast.success("문서가 삭제되었습니다");
+      setSelectedDocument(null);
+    } catch {
+      toast.error("문서 삭제에 실패했습니다.");
+    }
   };
 
   const handleUpdateDocument = (updatedDoc: PDFDocument) => {
@@ -373,13 +378,22 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     }
   };
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = async () => {
     if (selectedIds.length === 0) { toast.error("삭제할 문서를 선택해주세요"); return; }
-    if (confirm(`선택한 ${selectedIds.length}개의 문서를 삭제하시겠습니까?`)) {
-      setDocuments((prev) => prev.filter((doc) => !selectedIds.includes(doc.id)));
-      setSelectedIds([]);
-      toast.success(`${selectedIds.length}개의 문서가 삭제되었습니다`);
-    }
+    if (!confirm(`선택한 ${selectedIds.length}개의 문서를 삭제하시겠습니까?`)) return;
+
+    const results = await Promise.allSettled(
+      selectedIds.map((id) => documentdeleteAPI(Number(id)))
+    );
+
+    const succeeded = selectedIds.filter((_, i) => results[i].status === "fulfilled");
+    const failCount = results.length - succeeded.length;
+
+    setDocuments((prev) => prev.filter((doc) => !succeeded.includes(doc.id)));
+    setSelectedIds([]);
+
+    if (succeeded.length > 0) toast.success(`${succeeded.length}개의 문서가 삭제되었습니다`);
+    if (failCount > 0) toast.error(`${failCount}개의 문서 삭제에 실패했습니다.`);
   };
 
   // 상세 보기 화면

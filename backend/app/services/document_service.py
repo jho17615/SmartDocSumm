@@ -48,6 +48,7 @@ class DocumentService:
             # 요약 DB 저장
             summary = Summary(
                 document_id=document.id,
+                type="전체요약",  # 예시로 type을 "전체요약"로 설정, 실제로는 SummaryType 테이블에서 적절한 값을 가져와야 함    
                 content=summary_conent
             )
             db.add(summary)
