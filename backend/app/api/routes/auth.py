@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Cookie
+from fastapi import APIRouter, Depends, HTTPException, status, Cookie, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
@@ -30,28 +30,21 @@ class UserResponse(BaseModel):
         from_attributes = True
 
     
-@router.get("/me", response_model=UserResponse)
-async def get_me(
-    access_token: Optional[str] = Cookie(default=None),
-    db: Session = Depends(get_db)
-):
-    if access_token is None:
-        raise HTTPException(status_code=401, detail="인증 토큰이 없습니다.")
- 
+@router.get("/me")
+def get_me(request: Request, db: Session = Depends(get_db)):
+    token = request.cookies.get("access_token")
+    if not token:
+        return {"authenticated": False}
     try:
-        # 2. settings 속성 이름을 SECRET_KEY, ALGORITHM으로 올바르게 수정
-        payload = jwt.decode(access_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_id: str = payload.get("sub")
-        
         from app.services.auth_service import get_user
         user = get_user(db, int(user_id))
         if not user:
-            raise HTTPException(status_code=401, detail="유저를 찾을 수 없습니다.")
- 
-        return user
- 
+            return {"authenticated": False}
+        return {"authenticated": True, "id": user.id, "email": user.email, "name": user.name}
     except JWTError:
-        raise HTTPException(status_code=401, detail="토큰 검증에 실패했습니다.")
+        return {"authenticated": False}
 
 
 @router.post("/register", response_model=UserResponse)
@@ -122,3 +115,5 @@ def logout(response: Response):
     response.delete_cookie(key="access_token", httponly=True, samesite="lax")
     response.delete_cookie(key="refresh_token", httponly=True, samesite="lax")
     return {"message": "로그아웃 성공"}
+
+
