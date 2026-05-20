@@ -16,7 +16,14 @@ export async function signupAPI(email: string, password: string, name: string) {
 
     if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.detail || "회원가입 실패");
+        const detail = error.detail;
+        if (Array.isArray(detail)) {
+            const emailError = detail.find((d: any) =>
+                d.loc?.includes("email") || d.type?.includes("email")
+            );
+            throw new Error(emailError ? "이메일 형식이 올바르지 않습니다." : "회원가입 실패");
+        }
+        throw new Error(typeof detail === "string" ? detail : "회원가입 실패");
     }
 
     return response.json();
@@ -46,7 +53,14 @@ export async function loginApi(data: LoginRequest): Promise<void> {
     const result = await response.json();
 
     if (!response.ok) {
-        throw new Error(result.detail || "로그인에 실패했습니다.");
+        const detail = result.detail;
+        if (Array.isArray(detail)) {
+            const emailError = detail.find((d: any) =>
+                d.loc?.includes("email") || d.type?.includes("email")
+            );
+            throw new Error(emailError ? "이메일 형식이 올바르지 않습니다." : "로그인에 실패했습니다.");
+        }
+        throw new Error(typeof detail === "string" ? detail : "로그인에 실패했습니다.");
     }
 
 }

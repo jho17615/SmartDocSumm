@@ -135,7 +135,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
 
   const itemsPerPage = 5;
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  let progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [documents, setDocuments] = useState<PDFDocument[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(true);
