@@ -101,3 +101,34 @@ export async function documentSearchAPI(query: string) {
 }
 
 
+export async function getCategoryCountsAPI(): Promise<Record<string, number>> {
+    const response = await fetch(`/api/documents/category-counts`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+    });
+    if (!response.ok) throw new Error("카테고리 수량 조회 실패");
+    return response.json();
+}
+
+export async function documentCategoryAPI(
+    category: string,
+    page: number = 1,
+    size: number = 5
+): Promise<DocumentListResponse> {
+    try {
+        const response = await fetch(
+            `/api/documents/category?category=${encodeURIComponent(category)}&page=${page}&size=${size}`,
+            {
+                method: "GET",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+            }
+        );
+        if (!response.ok) throw new Error("문서 카테고리 조회 실패");
+        return await response.json();
+    } catch (error) {
+        console.error("documentCategoryAPI 오류:", error);
+        throw error;
+    }
+}

@@ -143,6 +143,24 @@ def sort_document_list(
     }
 
 
+@router.get("/category-counts")
+async def get_category_counts(
+    db: Session = Depends(get_db),
+    owner_id: int = Depends(get_current_user_id),
+):
+    from app.db.models import Document
+    from sqlalchemy import func
+
+    results = (
+        db.query(Document.category, func.count(Document.id))
+        .filter(Document.owner_id == owner_id, Document.is_deleted == False)
+        .group_by(Document.category)
+        .all()
+    )
+
+    return {category: count for category, count in results}
+
+
 @router.get("/search")
 async def search_documents(
     query: str = Query(..., description="검색어"),
@@ -158,6 +176,50 @@ async def search_documents(
 
     documents = (
         base_query
+        .offset((page - 1) * size)
+        .limit(size)
+        .all()
+    )
+
+    return {
+        "items": [
+            {
+                "id": doc.id,
+                "title": doc.title,
+                "category": doc.category,
+                "created_at": doc.created_at,
+            }
+            for doc in documents
+        ],
+        "total": total,
+        "page": page,
+        "size": size,
+        "total_pages": total_pages,
+    }
+
+
+@router.get("/category")
+async def get_documents_by_category(
+    category: str = Query(..., description="카테고리"),
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=5, ge=1, le=50),
+    db: Session = Depends(get_db),
+    owner_id: int = Depends(get_current_user_id),
+):
+    from app.db.models import Document
+
+    base_query = db.query(Document).filter(
+        Document.owner_id == owner_id,
+        Document.is_deleted == False,
+        Document.category == category,
+    )
+
+    total = base_query.count()
+    total_pages = (total + size - 1) // size
+
+    documents = (
+        base_query
+        .order_by(Document.created_at.desc())
         .offset((page - 1) * size)
         .limit(size)
         .all()
