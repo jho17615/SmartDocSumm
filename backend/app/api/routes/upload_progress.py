@@ -146,7 +146,7 @@ async def upload_with_progress(
             yield f"data: {json.dumps({'stage': 'classify', 'progress': 55, 'message': '🏷️ 카테고리 분류 중... (AI)'})}\n\n"
             await asyncio.sleep(0.5)
             
-            category = document_service._classify_category(content)
+            category = document_service._classify_category(content, title = tmp_file_path or file.filename)  # 파일명도 같이 넘겨서 분류 정확도 향상
             
             if check_cancelled():
                 yield f"data: {json.dumps({'stage': 'cancelled', 'progress': 0, 'message': '❌ 분석이 취소되었습니다.'})}\n\n"
