@@ -3,7 +3,6 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Checkbox } from "./ui/checkbox";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
 import {
@@ -32,7 +31,6 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
-  File,
 } from "lucide-react";
 import { PDFDetailView } from "./PDFDetailView";
 import { toast } from "sonner";
@@ -173,7 +171,6 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     if (page === 1) fetchDocuments(1);
   };
 
-  // ── 정렬 변경: API 호출 후 문서 목록 갱신 ──────────────
   const handleSortChange = async (value: "latest" | "oldest" | "name-asc" | "name-desc") => {
     setSortBy(value);
     setIsLoadingDocs(true);
@@ -199,7 +196,6 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     }
   };
 
-  // ── 검색어 변경: 빈 값이면 목록 복원, 아니면 즉시 isSearching=true ─────
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
     if (value.trim() === "") {
@@ -211,9 +207,6 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     }
   };
 
-<<<<<<< HEAD
-=======
-  // ── 검색어 디바운스 API 연동 ───────────────────────────
   useEffect(() => {
     if (searchQuery.trim() === "") return;
 
@@ -250,8 +243,6 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // ── 파일 유효성 검사 ────────────────────────────────
->>>>>>> f9d74b95fd8a3b65b33ac749dff491dce536a6b7
   const isValidFile = (file: File) => {
     const ext = "." + file.name.split(".").pop()?.toLowerCase();
     if (!SUPPORTED_EXTENSIONS.includes(ext) && !SUPPORTED_MIME_TYPES.includes(file.type)) {
@@ -261,7 +252,6 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     return true;
   };
 
-  // ── 업로드 시작 (SSE 방식) ─────────────────────────────────
   const startUpload = async () => {
     console.log("🚀 startUpload 실행됨!!!");
     if (!uploadedFile) return;
@@ -540,14 +530,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-<<<<<<< HEAD
               className={`border-2 border-dashed rounded-xl transition-all ${isDragging ? "border-amber-500 bg-amber-50 cursor-copy" : "border-blue-900/30 bg-gradient-to-br from-blue-900/5 to-amber-500/5 hover:from-blue-900/10 hover:to-amber-500/10 hover:shadow-xl cursor-pointer"} shadow-lg`}
-=======
-              className={`border-2 border-dashed rounded-xl transition-all ${isDragging
-                ? "border-amber-500 bg-amber-50 cursor-copy"
-                : "border-blue-900/30 bg-gradient-to-br from-blue-900/5 to-amber-500/5 hover:from-blue-900/10 hover:to-amber-500/10 hover:shadow-xl cursor-pointer"
-                } shadow-lg`}
->>>>>>> f9d74b95fd8a3b65b33ac749dff491dce536a6b7
             >
               <div className="flex flex-col items-center justify-center py-8 gap-3 pointer-events-none">
                 <Upload className="w-10 h-10 text-blue-900/50" />
@@ -594,18 +577,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
                   const Icon = categoryIcons[category] || BookOpen;
                   const isActive = activeTab === category;
                   return (
-<<<<<<< HEAD
                     <div key={category} onClick={() => handleTabChange(category)} className={`text-center p-3 rounded-lg transition-all cursor-pointer flex-1 min-w-[90px] ${isActive ? "bg-gradient-to-br from-amber-100 to-amber-50 border border-amber-500 shadow-md" : "bg-gradient-to-br from-white to-slate-50 border border-blue-900/10 hover:shadow-md hover:border-amber-500/30"}`}>
-=======
-                    <div
-                      key={category}
-                      onClick={() => handleTabChange(category)}
-                      className={`text-center p-3 rounded-lg transition-all cursor-pointer flex-1 min-w-[90px] ${isActive
-                        ? "bg-gradient-to-br from-amber-100 to-amber-50 border border-amber-500 shadow-md"
-                        : "bg-gradient-to-br from-white to-slate-50 border border-blue-900/10 hover:shadow-md hover:border-amber-500/30"
-                        }`}
-                    >
->>>>>>> f9d74b95fd8a3b65b33ac749dff491dce536a6b7
                       <Icon className={`w-6 h-6 mx-auto mb-2 ${isActive ? "text-amber-700" : "text-blue-900"}`} />
                       <div className={`text-sm font-medium ${isActive ? "text-amber-800" : "text-blue-900"}`}>{category}</div>
                       <div className={`text-xs mt-1 font-semibold ${isActive ? "text-amber-600" : "text-amber-700"}`}>{count}개</div>
@@ -620,16 +592,12 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
         <div className="mb-6 flex flex-col md:flex-row gap-4 slide-in-bottom stagger-1">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-blue-900/50" />
-<<<<<<< HEAD
-            <Input placeholder="파일명, 카테고리로 검색..." value={searchQuery} onChange={(e) => handleSearchChange(e.target.value)} className="pl-10 border-blue-900/20 focus:border-amber-500 focus:ring-amber-500/20" />
-=======
             <Input
               placeholder="파일명으로 검색..."
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
               className="pl-10 border-blue-900/20 focus:border-amber-500 focus:ring-amber-500/20"
             />
->>>>>>> f9d74b95fd8a3b65b33ac749dff491dce536a6b7
           </div>
           <Select value={sortBy} onValueChange={handleSortChange}>
             <SelectTrigger className="w-full md:w-[200px] border-blue-900/20">
@@ -662,9 +630,6 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
           </div>
 
           {isLoadingDocs ? (
-<<<<<<< HEAD
-            <Card><CardContent className="py-12 text-center"><Loader2 className="w-10 h-10 mx-auto mb-4 animate-spin" /><p>문서 목록을 불러오는 중...</p></CardContent></Card>
-=======
             <Card className="shadow-lg border-blue-900/10 bg-white/90 backdrop-blur">
               <CardContent className="py-12 text-center text-slate-600">
                 <Loader2 className="w-10 h-10 mx-auto mb-4 animate-spin text-blue-900/50" />
@@ -678,14 +643,12 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
                 <p>검색 중...</p>
               </CardContent>
             </Card>
->>>>>>> f9d74b95fd8a3b65b33ac749dff491dce536a6b7
           ) : displayedDocuments.length === 0 ? (
             <Card><CardContent className="py-12 text-center"><FileText className="w-12 h-12 mx-auto mb-4 opacity-50" /><p>문서가 없습니다</p></CardContent></Card>
           ) : (
             <div className="grid gap-4">{displayedDocuments.map(renderDocCard)}</div>
           )}
 
-          {/* 페이지네이션 UI */}
           {totalPages > 1 && (
             <div className="flex justify-center items-center gap-3 mt-6">
               <Button
