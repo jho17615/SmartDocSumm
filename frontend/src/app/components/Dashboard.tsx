@@ -42,6 +42,7 @@ import {
   getDocumentListAPI,
   getDocumentDetailAPI,
   documentdeleteAPI,
+  documentListSortAPI,
   DocumentListResponse,
 } from "../api/document";
 
@@ -170,6 +171,33 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     if (page === 1) fetchDocuments(1);
   };
 
+  // ── 정렬 변경: API 호출 후 문서 목록 갱신 ──────────────
+  const handleSortChange = async (value: "latest" | "oldest" | "name-asc" | "name-desc") => {
+    setSortBy(value);
+    setIsLoadingDocs(true);
+    setSelectedIds([]);
+    try {
+      const data: DocumentListResponse = await documentListSortAPI(value);
+      const mapped: PDFDocument[] = data.items.map((doc) => ({
+        id: String(doc.id),
+        fileName: doc.title,
+        category: doc.category ?? "기타",
+        date: doc.created_at?.split("T")[0] ?? "",
+        summary: "",
+        pageCount: 0,
+      }));
+      setDocuments(mapped);
+      setPage(data.page);
+      setTotalPages(data.total_pages);
+      setTotal(data.total);
+    } catch {
+      toast.error("정렬에 실패했습니다.");
+    } finally {
+      setIsLoadingDocs(false);
+    }
+  };
+
+  // ── 검색어 변경 시 1페이지로 리셋 ─────────────────────
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
     setPage(1);
@@ -356,7 +384,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
   };
 
   const handleLogout = async () => {
-    try { await logoutApi(); } catch {}
+    try { await logoutApi(); } catch { }
     onLogout();
   };
 
@@ -528,7 +556,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-blue-900/50" />
             <Input placeholder="파일명, 카테고리로 검색..." value={searchQuery} onChange={(e) => handleSearchChange(e.target.value)} className="pl-10 border-blue-900/20 focus:border-amber-500 focus:ring-amber-500/20" />
           </div>
-          <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+          <Select value={sortBy} onValueChange={handleSortChange}>
             <SelectTrigger className="w-full md:w-[200px] border-blue-900/20">
               <ArrowUpDown className="w-4 h-4 mr-2" />
               <SelectValue placeholder="정렬" />

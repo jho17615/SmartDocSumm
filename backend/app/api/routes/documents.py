@@ -9,7 +9,7 @@ from app.db.database import get_db
 from app.core.config import settings
 from app.services.auth_service import get_user
 from app.services.document_service import document_service
-from app.db.document import update_document, delete_document
+from app.db.document import update_document, delete_document, sort_document
 from app.schemas.document import DocumentUpdate
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -106,6 +106,43 @@ def get_document_list(
     }
 
 
+@router.get("/list/sort")
+def sort_document_list(
+    sort: str = Query(default="latest"),
+    page: int = Query(default=1, ge=1, description="페이지 번호 (1부터 시작)"),
+    size: int = Query(default=5, ge=1, le=50, description="페이지당 문서 수"),
+    db: Session = Depends(get_db),
+    owner_id: int = Depends(get_current_user_id)
+):
+    base_query = sort_document(db, owner_id, sort)
+
+    total = base_query.count()
+    total_pages = (total + size - 1) // size
+
+    documents = (
+        base_query
+        .offset((page - 1) * size)
+        .limit(size)
+        .all()
+    )
+
+    return {
+        "items": [
+            {
+                "id": doc.id,
+                "title": doc.title,
+                "category": doc.category,
+                "created_at": doc.created_at,
+            }
+            for doc in documents
+        ],
+        "total": total,
+        "page": page,
+        "size": size,
+        "total_pages": total_pages,
+    }
+
+
 @router.get("/{document_id}")
 def get_document(
     document_id: int,
@@ -171,3 +208,4 @@ async def delete_document_route(
         raise HTTPException(status_code=404, detail="삭제에 실패하였습니다.")
 
     return document
+

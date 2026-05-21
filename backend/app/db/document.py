@@ -25,3 +25,22 @@ def delete_document(db: Session, id: int):
     db.delete(document)
     db.commit()
     return document
+
+def sort_document(db: Session, owner_id: int, sort: str):
+    base_query = db.query(Document).filter(
+        Document.owner_id == owner_id,
+        Document.is_deleted == False
+    )
+
+    if sort == "latest":
+        base_query = base_query.order_by(Document.created_at.desc())
+    elif sort == "oldest":
+        base_query = base_query.order_by(Document.created_at.asc())
+    elif sort == "name-asc":
+        base_query = base_query.order_by(Document.title.asc())
+    elif sort == "name-desc":
+        base_query = base_query.order_by(Document.title.desc())
+    else:
+        base_query = base_query.order_by(Document.created_at.desc())
+
+    return base_query
