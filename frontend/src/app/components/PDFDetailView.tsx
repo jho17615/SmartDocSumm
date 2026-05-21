@@ -363,7 +363,7 @@ export function PDFDetailView({ document, onBack, onDelete, onUpdate }: PDFDetai
           </CardHeader>
           <CardContent>
             {!isEditing ? (
-              <p className="leading-relaxed">{document.summary}</p>
+              <p className="leading-relaxed whitespace-pre-wrap">{document.summary}</p>
             ) : (
               <div>
                 <Label htmlFor="summary" className="text-blue-900">요약 내용</Label>
