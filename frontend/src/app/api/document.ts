@@ -1,3 +1,5 @@
+import { apiFetch } from "./client";
+
 export interface DocumentListItem {
     id: number;
     title: string;
@@ -18,7 +20,7 @@ export async function getDocumentListAPI(
     page: number = 1,
     size: number = 5
 ): Promise<DocumentListResponse> {
-    const response = await fetch(`/api/documents/list?page=${page}&size=${size}`, {
+    const response = await apiFetch(`/api/documents/list?page=${page}&size=${size}`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -29,7 +31,7 @@ export async function getDocumentListAPI(
 
 
 export async function getDocumentDetailAPI(documentId: number) {
-    const response = await fetch(`/api/documents/${documentId}`, {
+    const response = await apiFetch(`/api/documents/${documentId}`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -40,7 +42,7 @@ export async function getDocumentDetailAPI(documentId: number) {
 
 export async function documentModifyAPI(documentId: number, content: string, title: string, category: string) {
     try {
-        const response = await fetch(`/api/documents/modify/${documentId}`, {
+        const response = await apiFetch(`/api/documents/modify/${documentId}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -57,7 +59,7 @@ export async function documentModifyAPI(documentId: number, content: string, tit
 
 export async function documentdeleteAPI(documentId: number) {
     try {
-        const response = await fetch(`/api/documents/delete/${documentId}`, {
+        const response = await apiFetch(`/api/documents/delete/${documentId}`, {
             method: "DELETE",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -72,7 +74,7 @@ export async function documentdeleteAPI(documentId: number) {
 
 export async function documentListSortAPI(sort: string): Promise<DocumentListResponse> {
     try {
-        const response = await fetch(`/api/documents/list/sort?sort=${sort}`, {
+        const response = await apiFetch(`/api/documents/list/sort?sort=${sort}`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -87,7 +89,7 @@ export async function documentListSortAPI(sort: string): Promise<DocumentListRes
 
 export async function documentSearchAPI(query: string) {
     try {
-        const response = await fetch(`/api/documents/search?query=${query}&size=5`, {
+        const response = await apiFetch(`/api/documents/search?query=${query}&size=5`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -102,7 +104,7 @@ export async function documentSearchAPI(query: string) {
 
 
 export async function getCategoryCountsAPI(): Promise<Record<string, number>> {
-    const response = await fetch(`/api/documents/category-counts`, {
+    const response = await apiFetch(`/api/documents/category-counts`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -117,7 +119,7 @@ export async function documentCategoryAPI(
     size: number = 5
 ): Promise<DocumentListResponse> {
     try {
-        const response = await fetch(
+        const response = await apiFetch(
             `/api/documents/category?category=${encodeURIComponent(category)}&page=${page}&size=${size}`,
             {
                 method: "GET",
