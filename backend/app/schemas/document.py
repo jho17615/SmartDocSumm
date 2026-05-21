@@ -6,3 +6,4 @@ class DocumentUpdate(BaseModel):
     title: Optional[str] = None
     content: Optional[str] = None
     summary: Optional[str] = None  # summaries 테이블 content 필드와 매핑
+

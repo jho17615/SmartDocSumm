@@ -42,6 +42,7 @@ import {
   getDocumentListAPI,
   getDocumentDetailAPI,
   documentdeleteAPI,
+  documentListSortAPI,
   DocumentListResponse,
 } from "../api/document";
 
@@ -168,10 +169,10 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
 
   const sortedDocuments = [...filteredDocuments].sort((a, b) => {
     switch (sortBy) {
-      case "latest":   return new Date(b.date).getTime() - new Date(a.date).getTime();
-      case "oldest":   return new Date(a.date).getTime() - new Date(b.date).getTime();
+      case "latest": return new Date(b.date).getTime() - new Date(a.date).getTime();
+      case "oldest": return new Date(a.date).getTime() - new Date(b.date).getTime();
       case "name-asc": return a.fileName.localeCompare(b.fileName);
-      case "name-desc":return b.fileName.localeCompare(a.fileName);
+      case "name-desc": return b.fileName.localeCompare(a.fileName);
       default: return 0;
     }
   });
@@ -187,6 +188,32 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     setPage(1);
     // page가 이미 1이면 useEffect 미발동 → 직접 호출
     if (page === 1) fetchDocuments(1);
+  };
+
+  // ── 정렬 변경: API 호출 후 문서 목록 갱신 ──────────────
+  const handleSortChange = async (value: "latest" | "oldest" | "name-asc" | "name-desc") => {
+    setSortBy(value);
+    setIsLoadingDocs(true);
+    setSelectedIds([]);
+    try {
+      const data: DocumentListResponse = await documentListSortAPI(value);
+      const mapped: PDFDocument[] = data.items.map((doc) => ({
+        id: String(doc.id),
+        fileName: doc.title,
+        category: doc.category ?? "기타",
+        date: doc.created_at?.split("T")[0] ?? "",
+        summary: "",
+        pageCount: 0,
+      }));
+      setDocuments(mapped);
+      setPage(data.page);
+      setTotalPages(data.total_pages);
+      setTotal(data.total);
+    } catch {
+      toast.error("정렬에 실패했습니다.");
+    } finally {
+      setIsLoadingDocs(false);
+    }
   };
 
   // ── 검색어 변경 시 1페이지로 리셋 ─────────────────────
@@ -363,7 +390,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
   };
 
   const handleLogout = async () => {
-    try { await logoutApi(); } catch {}
+    try { await logoutApi(); } catch { }
     onLogout();
   };
 
@@ -487,11 +514,10 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-xl transition-all ${
-                isDragging
+              className={`border-2 border-dashed rounded-xl transition-all ${isDragging
                   ? "border-amber-500 bg-amber-50 cursor-copy"
                   : "border-blue-900/30 bg-gradient-to-br from-blue-900/5 to-amber-500/5 hover:from-blue-900/10 hover:to-amber-500/10 hover:shadow-xl cursor-pointer"
-              } shadow-lg`}
+                } shadow-lg`}
             >
               <div className="flex flex-col items-center justify-center py-8 gap-3 pointer-events-none">
                 <Upload className="w-10 h-10 text-blue-900/50" />
@@ -543,11 +569,10 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
                     <div
                       key={category}
                       onClick={() => handleTabChange(category)}
-                      className={`text-center p-3 rounded-lg transition-all cursor-pointer flex-1 min-w-[90px] ${
-                        isActive
+                      className={`text-center p-3 rounded-lg transition-all cursor-pointer flex-1 min-w-[90px] ${isActive
                           ? "bg-gradient-to-br from-amber-100 to-amber-50 border border-amber-500 shadow-md"
                           : "bg-gradient-to-br from-white to-slate-50 border border-blue-900/10 hover:shadow-md hover:border-amber-500/30"
-                      }`}
+                        }`}
                     >
                       <Icon className={`w-6 h-6 mx-auto mb-2 ${isActive ? "text-amber-700" : "text-blue-900"}`} />
                       <div className={`text-sm font-medium ${isActive ? "text-amber-800" : "text-blue-900"}`}>{category}</div>
@@ -571,7 +596,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
               className="pl-10 border-blue-900/20 focus:border-amber-500 focus:ring-amber-500/20"
             />
           </div>
-          <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+          <Select value={sortBy} onValueChange={handleSortChange}>
             <SelectTrigger className="w-full md:w-[200px] border-blue-900/20">
               <ArrowUpDown className="w-4 h-4 mr-2" />
               <SelectValue placeholder="정렬" />

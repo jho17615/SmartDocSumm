@@ -42,3 +42,4 @@ easyocr
 mammoth 
 ollama 
 sqlalchemy
+elasticsearch

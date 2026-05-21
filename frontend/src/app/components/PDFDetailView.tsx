@@ -126,7 +126,7 @@ export function PDFDetailView({ document, onBack, onDelete, onUpdate }: PDFDetai
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [editedDoc, setEditedDoc] = useState(document);
-  
+
   // ✅ 문서에 저장된 분석 결과 불러오기 (없으면 기본값)
   const [analysisResults, setAnalysisResults] = useState<AnalysisResults>(
     document.analysisResults || {
@@ -179,7 +179,7 @@ export function PDFDetailView({ document, onBack, onDelete, onUpdate }: PDFDetai
   const updatePageSummary = (page: number, summary: string) => {
     setAnalysisResults(prev => ({
       ...prev,
-      pageSummaries: prev.pageSummaries.map(p => 
+      pageSummaries: prev.pageSummaries.map(p =>
         p.page === page ? { ...p, summary } : p
       )
     }));
@@ -189,7 +189,7 @@ export function PDFDetailView({ document, onBack, onDelete, onUpdate }: PDFDetai
   const updateSectionSummary = (index: number, summary: string) => {
     setAnalysisResults(prev => ({
       ...prev,
-      sectionSummaries: prev.sectionSummaries.map((s, i) => 
+      sectionSummaries: prev.sectionSummaries.map((s, i) =>
         i === index ? { ...s, summary } : s
       )
     }));
@@ -199,7 +199,7 @@ export function PDFDetailView({ document, onBack, onDelete, onUpdate }: PDFDetai
   const updatePercentSummary = (percent: number, summary: string) => {
     setAnalysisResults(prev => ({
       ...prev,
-      percentSummaries: prev.percentSummaries.map(p => 
+      percentSummaries: prev.percentSummaries.map(p =>
         p.percent === percent ? { ...p, summary } : p
       )
     }));
@@ -296,10 +296,10 @@ export function PDFDetailView({ document, onBack, onDelete, onUpdate }: PDFDetai
                         <Calendar className="w-4 h-4" />
                         {document.date}
                       </div>
-                      <div className="flex items-center gap-1">
+                      {/* <div className="flex items-center gap-1">
                         <FileStack className="w-4 h-4" />
                         {document.pageCount} 페이지
-                      </div>
+                      </div> */}
                     </div>
                   </>
                 ) : (
@@ -380,7 +380,7 @@ export function PDFDetailView({ document, onBack, onDelete, onUpdate }: PDFDetai
         </Card>
 
         {/* AI 분석 결과 - 주요 인사이트 */}
-{/*     <Card className="mb-6 slide-in-bottom stagger-1 shadow-lg border-amber-500/30 bg-gradient-to-br from-white to-amber-50/30">
+        {/*     <Card className="mb-6 slide-in-bottom stagger-1 shadow-lg border-amber-500/30 bg-gradient-to-br from-white to-amber-50/30">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-blue-900">
               <BarChart3 className="w-5 h-5 text-amber-600" />
@@ -421,8 +421,8 @@ export function PDFDetailView({ document, onBack, onDelete, onUpdate }: PDFDetai
           </CardContent>
         </Card> */}
 
-        
-{/*        <Tabs defaultValue="full" className="w-full slide-in-bottom stagger-2">
+
+        {/*        <Tabs defaultValue="full" className="w-full slide-in-bottom stagger-2">
           <TabsList className="grid w-full grid-cols-4 bg-gradient-to-r from-blue-900/10 to-indigo-900/10 border border-blue-900/20">
             <TabsTrigger value="full">전체 요약</TabsTrigger>
             <TabsTrigger value="pages">페이지별</TabsTrigger>
