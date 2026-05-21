@@ -23,9 +23,9 @@ class DocumentService:
             elif file_path.endswith(".hwp"):
                 from app.services.hwp_service import extract_text_from_hwp
                 content = extract_text_from_hwp(file_path)
-            # elif file_path.endswith(".pptx") or file_path.endswith(".ppt"):
-            #     from app.services.pptx_service import pptx_service
-            #     content = pptx_service.extract_text(file_path)
+            elif file_path.endswith(".pptx") or file_path.endswith(".ppt"):
+                from app.services.pptx_service import pptx_service
+                content = pptx_service.extract_text(file_path)
             else:
                 raise ValueError("지원하지 않는 파일 형식입니다.")
 

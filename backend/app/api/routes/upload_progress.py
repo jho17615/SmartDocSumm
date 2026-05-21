@@ -118,13 +118,29 @@ async def upload_with_progress(
                         tmp_file.write(file_bytes)
                         tmp_file_path = tmp_file.name
                     content = extract_text_from_hwp(tmp_file_path)
-                    
+
                     if check_cancelled():
                         yield f"data: {json.dumps({'stage': 'cancelled', 'progress': 0, 'message': '❌ 분석이 취소되었습니다.'})}\n\n"
                         return
-                        
+
                     show_progress(50, f"📄 HWP 텍스트 추출 완료 ({len(content)}자)")
                     yield f"data: {json.dumps({'stage': 'extract', 'progress': 50, 'message': f'📄 HWP 텍스트 추출 완료'})}\n\n"
+
+                elif file.filename.endswith((".pptx", ".ppt")):
+                    from app.services.pptx_service import pptx_service
+                    suffix = ".pptx" if file.filename.endswith(".pptx") else ".ppt"
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
+                        tmp_file.write(file_bytes)
+                        tmp_file_path = tmp_file.name
+                    content = pptx_service.extract_text(tmp_file_path)
+
+                    if check_cancelled():
+                        yield f"data: {json.dumps({'stage': 'cancelled', 'progress': 0, 'message': '❌ 분석이 취소되었습니다.'})}\n\n"
+                        return
+
+                    show_progress(50, f"📊 PPT 텍스트 추출 완료 ({len(content)}자)")
+                    yield f"data: {json.dumps({'stage': 'extract', 'progress': 50, 'message': f'📊 PPT 텍스트 추출 완료'})}\n\n"
+
                 else:
                     raise ValueError("지원하지 않는 파일 형식입니다")
                     
