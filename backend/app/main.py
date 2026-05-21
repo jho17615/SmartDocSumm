@@ -5,6 +5,7 @@ from app.db.database import Base, engine
 import app.db.models  # ✅ 테이블 인식용
 from app.api.routes import auth
 from app.api.routes.documents import router as document_router
+from app.api.routes import upload_progress   # ✅ 이렇게 수정!
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -23,6 +24,8 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(document_router)
+app.include_router(upload_progress.router)
+
 
 @app.get("/")
 async def root():
