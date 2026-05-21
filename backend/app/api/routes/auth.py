@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Cookie, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Cookie, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
@@ -31,18 +31,48 @@ class UserResponse(BaseModel):
 
     
 @router.get("/me")
-def get_me(request: Request, db: Session = Depends(get_db)):
-    token = request.cookies.get("access_token")
-    if not token:
+def get_me(request: Request, response: Response, db: Session = Depends(get_db)):
+    from app.services.auth_service import get_user
+    print("get_me 호출됨")
+    access_token = request.cookies.get("access_token")
+
+    # ── 1) access_token 검증 ──────────────────────────────
+    if access_token:
+        try:
+            payload = jwt.decode(access_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            user_id: str = payload.get("sub")
+            user = get_user(db, int(user_id))
+            if user:
+                return {"authenticated": True, "id": user.id, "email": user.email, "name": user.name}
+        except JWTError:
+            pass  # access_token 만료 → refresh_token 시도
+
+    # ── 2) access_token 없거나 만료 → refresh_token 검증 ─────
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
         return {"authenticated": False}
+
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        user_id: str = payload.get("sub")
-        from app.services.auth_service import get_user
-        user = get_user(db, int(user_id))
+        payload = jwt.decode(refresh_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if payload.get("type") != "refresh" or not payload.get("sub"):
+            return {"authenticated": False}
+
+        user = get_user(db, int(payload["sub"]))
         if not user:
             return {"authenticated": False}
+
+        # ── 3) 새 access_token 발급 후 cookie 재설정 ──────────
+        new_access_token = create_access_token(data={"sub": str(user.id)})
+        response.set_cookie(
+            key="access_token",
+            value=new_access_token,
+            httponly=True,
+            secure=False,
+            samesite="lax",
+            max_age=60 * 30,
+        )
         return {"authenticated": True, "id": user.id, "email": user.email, "name": user.name}
+
     except JWTError:
         return {"authenticated": False}
 

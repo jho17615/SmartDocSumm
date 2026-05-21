@@ -84,3 +84,20 @@ export async function documentListSortAPI(sort: string): Promise<DocumentListRes
         throw error;
     }
 }
+
+export async function documentSearchAPI(query: string) {
+    try {
+        const response = await fetch(`/api/documents/search?query=${query}&size=5`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+        });
+        if (!response.ok) throw new Error("문서 검색 실패");
+        return await response.json();
+    } catch (error) {
+        console.error("documentSearchAPI 오류:", error);
+        throw error;
+    }
+}
+
+
