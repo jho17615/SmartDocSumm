@@ -69,3 +69,18 @@ export async function documentdeleteAPI(documentId: number) {
         throw error;
     }
 }
+
+export async function documentListSortAPI(sort: string): Promise<DocumentListResponse> {
+    try {
+        const response = await fetch(`/api/documents/list/sort?sort=${sort}`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+        });
+        if (!response.ok) throw new Error("문서 목록을 불러오지 못했습니다.");
+        return response.json();
+    } catch (error) {
+        console.error("documentListSortAPI 오류:", error);
+        throw error;
+    }
+}
