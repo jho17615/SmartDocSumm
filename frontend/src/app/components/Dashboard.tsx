@@ -43,6 +43,7 @@ import {
   getDocumentDetailAPI,
   documentdeleteAPI,
   documentListSortAPI,
+  documentSearchAPI,
   DocumentListResponse,
 } from "../api/document";
 
@@ -104,6 +105,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [documents, setDocuments] = useState<PDFDocument[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
   const [loadingDocId, setLoadingDocId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -197,13 +199,59 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     }
   };
 
-  // ── 검색어 변경 시 1페이지로 리셋 ─────────────────────
+  // ── 검색어 변경: 빈 값이면 목록 복원, 아니면 즉시 isSearching=true ─────
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
-    setPage(1);
-    if (page === 1) fetchDocuments(1);
+    if (value.trim() === "") {
+      setIsSearching(false);
+      setPage(1);
+      if (page === 1) fetchDocuments(1);
+    } else {
+      setIsSearching(true);
+    }
   };
 
+<<<<<<< HEAD
+=======
+  // ── 검색어 디바운스 API 연동 ───────────────────────────
+  useEffect(() => {
+    if (searchQuery.trim() === "") return;
+
+    const timer = setTimeout(async () => {
+      setSelectedIds([]);
+      try {
+        const [data] = await Promise.all([
+          documentSearchAPI(searchQuery.trim()),
+          new Promise<void>((resolve) => setTimeout(resolve, 100)),
+        ]);
+        const items: DocumentListResponse["items"] = Array.isArray(data)
+          ? data
+          : (data.items ?? []);
+        const mapped: PDFDocument[] = items.map((doc) => ({
+          id: String(doc.id),
+          fileName: doc.title,
+          category: doc.category ?? "기타",
+          date: doc.created_at?.split("T")[0] ?? "",
+          summary: "",
+          pageCount: 0,
+        }));
+        setDocuments(mapped);
+        setTotalPages(1);
+        setTotal(mapped.length);
+      } catch {
+        toast.error("검색에 실패했습니다.");
+        setDocuments([]);
+        setTotal(0);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // ── 파일 유효성 검사 ────────────────────────────────
+>>>>>>> f9d74b95fd8a3b65b33ac749dff491dce536a6b7
   const isValidFile = (file: File) => {
     const ext = "." + file.name.split(".").pop()?.toLowerCase();
     if (!SUPPORTED_EXTENSIONS.includes(ext) && !SUPPORTED_MIME_TYPES.includes(file.type)) {
@@ -492,7 +540,14 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
+<<<<<<< HEAD
               className={`border-2 border-dashed rounded-xl transition-all ${isDragging ? "border-amber-500 bg-amber-50 cursor-copy" : "border-blue-900/30 bg-gradient-to-br from-blue-900/5 to-amber-500/5 hover:from-blue-900/10 hover:to-amber-500/10 hover:shadow-xl cursor-pointer"} shadow-lg`}
+=======
+              className={`border-2 border-dashed rounded-xl transition-all ${isDragging
+                ? "border-amber-500 bg-amber-50 cursor-copy"
+                : "border-blue-900/30 bg-gradient-to-br from-blue-900/5 to-amber-500/5 hover:from-blue-900/10 hover:to-amber-500/10 hover:shadow-xl cursor-pointer"
+                } shadow-lg`}
+>>>>>>> f9d74b95fd8a3b65b33ac749dff491dce536a6b7
             >
               <div className="flex flex-col items-center justify-center py-8 gap-3 pointer-events-none">
                 <Upload className="w-10 h-10 text-blue-900/50" />
@@ -539,7 +594,18 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
                   const Icon = categoryIcons[category] || BookOpen;
                   const isActive = activeTab === category;
                   return (
+<<<<<<< HEAD
                     <div key={category} onClick={() => handleTabChange(category)} className={`text-center p-3 rounded-lg transition-all cursor-pointer flex-1 min-w-[90px] ${isActive ? "bg-gradient-to-br from-amber-100 to-amber-50 border border-amber-500 shadow-md" : "bg-gradient-to-br from-white to-slate-50 border border-blue-900/10 hover:shadow-md hover:border-amber-500/30"}`}>
+=======
+                    <div
+                      key={category}
+                      onClick={() => handleTabChange(category)}
+                      className={`text-center p-3 rounded-lg transition-all cursor-pointer flex-1 min-w-[90px] ${isActive
+                        ? "bg-gradient-to-br from-amber-100 to-amber-50 border border-amber-500 shadow-md"
+                        : "bg-gradient-to-br from-white to-slate-50 border border-blue-900/10 hover:shadow-md hover:border-amber-500/30"
+                        }`}
+                    >
+>>>>>>> f9d74b95fd8a3b65b33ac749dff491dce536a6b7
                       <Icon className={`w-6 h-6 mx-auto mb-2 ${isActive ? "text-amber-700" : "text-blue-900"}`} />
                       <div className={`text-sm font-medium ${isActive ? "text-amber-800" : "text-blue-900"}`}>{category}</div>
                       <div className={`text-xs mt-1 font-semibold ${isActive ? "text-amber-600" : "text-amber-700"}`}>{count}개</div>
@@ -554,7 +620,16 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
         <div className="mb-6 flex flex-col md:flex-row gap-4 slide-in-bottom stagger-1">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-blue-900/50" />
+<<<<<<< HEAD
             <Input placeholder="파일명, 카테고리로 검색..." value={searchQuery} onChange={(e) => handleSearchChange(e.target.value)} className="pl-10 border-blue-900/20 focus:border-amber-500 focus:ring-amber-500/20" />
+=======
+            <Input
+              placeholder="파일명으로 검색..."
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="pl-10 border-blue-900/20 focus:border-amber-500 focus:ring-amber-500/20"
+            />
+>>>>>>> f9d74b95fd8a3b65b33ac749dff491dce536a6b7
           </div>
           <Select value={sortBy} onValueChange={handleSortChange}>
             <SelectTrigger className="w-full md:w-[200px] border-blue-900/20">
@@ -587,7 +662,23 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
           </div>
 
           {isLoadingDocs ? (
+<<<<<<< HEAD
             <Card><CardContent className="py-12 text-center"><Loader2 className="w-10 h-10 mx-auto mb-4 animate-spin" /><p>문서 목록을 불러오는 중...</p></CardContent></Card>
+=======
+            <Card className="shadow-lg border-blue-900/10 bg-white/90 backdrop-blur">
+              <CardContent className="py-12 text-center text-slate-600">
+                <Loader2 className="w-10 h-10 mx-auto mb-4 animate-spin text-blue-900/50" />
+                <p>문서 목록을 불러오는 중...</p>
+              </CardContent>
+            </Card>
+          ) : isSearching ? (
+            <Card className="shadow-lg border-blue-900/10 bg-white/90 backdrop-blur">
+              <CardContent className="py-12 text-center text-slate-600">
+                <Loader2 className="w-10 h-10 mx-auto mb-4 animate-spin text-blue-900/50" />
+                <p>검색 중...</p>
+              </CardContent>
+            </Card>
+>>>>>>> f9d74b95fd8a3b65b33ac749dff491dce536a6b7
           ) : displayedDocuments.length === 0 ? (
             <Card><CardContent className="py-12 text-center"><FileText className="w-12 h-12 mx-auto mb-4 opacity-50" /><p>문서가 없습니다</p></CardContent></Card>
           ) : (

@@ -44,3 +44,10 @@ def sort_document(db: Session, owner_id: int, sort: str):
         base_query = base_query.order_by(Document.created_at.desc())
 
     return base_query
+
+def search_document(db: Session, owner_id: int, query: str):
+    return db.query(Document).filter(
+        Document.owner_id == owner_id,
+        Document.is_deleted == False,
+        Document.title.ilike(f"%{query}%")
+    )
