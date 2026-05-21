@@ -3,6 +3,7 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Checkbox } from "./ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
 import {
@@ -31,6 +32,7 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
+  File,
 } from "lucide-react";
 import { PDFDetailView } from "./PDFDetailView";
 import { toast } from "sonner";
@@ -42,6 +44,8 @@ import {
   documentdeleteAPI,
   documentListSortAPI,
   documentSearchAPI,
+  documentCategoryAPI,
+  getCategoryCountsAPI,
   DocumentListResponse,
 } from "../api/document";
 
@@ -113,16 +117,61 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
   const [activeTab, setActiveTab] = useState("전체");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null); // ✅ 백엔드 취소용 task_id
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
+  const [overallTotal, setOverallTotal] = useState(0); // "전체" 카드용 고정 수량
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // ── 카테고리별 전체 수량 fetch ────────────────────────
+  const fetchCategoryCounts = async () => {
+    try {
+      const counts = await getCategoryCountsAPI();
+      setCategoryCounts(counts);
+    } catch {
+      // 카운트 실패 시 무시 (목록 로딩에 영향 없음)
+    }
+  };
+
   const fetchDocuments = async (targetPage: number = 1) => {
     setIsLoadingDocs(true);
     setSelectedIds([]);
     try {
-      const data: DocumentListResponse = await getDocumentListAPI(targetPage, ITEMS_PER_PAGE);
+      const [data] = await Promise.all([
+        getDocumentListAPI(targetPage, ITEMS_PER_PAGE),
+        fetchCategoryCounts(),
+      ]);
+      const mapped: PDFDocument[] = data.items.map((doc) => ({
+        id: String(doc.id),
+        fileName: doc.title,
+        category: doc.category ?? "기타",
+        date: doc.created_at?.split("T")[0] ?? "",
+        summary: "",
+        pageCount: 0,
+      }));
+      setDocuments(mapped);
+      setPage(data.page);
+      setTotalPages(data.total_pages);
+      setTotal(data.total);
+      setOverallTotal(data.total);
+    } catch {
+      toast.error("문서 목록을 불러오지 못했습니다.");
+    } finally {
+      setIsLoadingDocs(false);
+    }
+  };
+
+  // ── 카테고리 문서 fetch ────────────────────────────────
+  const fetchCategoryDocuments = async (category: string, targetPage: number = 1) => {
+    setIsLoadingDocs(true);
+    setSelectedIds([]);
+    try {
+      const [data] = await Promise.all([
+        documentCategoryAPI(category, targetPage, ITEMS_PER_PAGE),
+        fetchCategoryCounts(),
+        new Promise<void>((resolve) => setTimeout(resolve, 300)),
+      ]);
       const mapped: PDFDocument[] = data.items.map((doc) => ({
         id: String(doc.id),
         fileName: doc.title,
@@ -136,26 +185,30 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
       setTotalPages(data.total_pages);
       setTotal(data.total);
     } catch {
-      toast.error("문서 목록을 불러오지 못했습니다.");
+      toast.error("카테고리 목록을 불러오지 못했습니다.");
     } finally {
       setIsLoadingDocs(false);
     }
   };
 
+  // ── 페이지·탭 변경 시 문서 fetch (검색 모드 제외) ──────
   useEffect(() => {
-    fetchDocuments(page);
-  }, [page]);
+    if (searchQuery.trim() !== "") return;
+    if (activeTab === "전체") {
+      fetchDocuments(page);
+    } else {
+      fetchCategoryDocuments(activeTab, page);
+    }
+  }, [page, activeTab]);
 
+  // ── 카테고리별 문서 수 (백엔드 전체 집계 기준) ──────────
   const getCategoryCount = (category: string) =>
-    category === "전체" ? total : documents.filter((d) => d.category === category).length;
+    category === "전체"
+      ? overallTotal
+      : (categoryCounts[category] ?? 0);
 
-  const filteredDocuments = documents.filter(
-    (doc) =>
-      doc.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const sortedDocuments = [...filteredDocuments].sort((a, b) => {
+  // ── 클라이언트 측 정렬 ────────────────────────────────
+  const sortedDocuments = [...documents].sort((a, b) => {
     switch (sortBy) {
       case "latest": return new Date(b.date).getTime() - new Date(a.date).getTime();
       case "oldest": return new Date(a.date).getTime() - new Date(b.date).getTime();
@@ -165,12 +218,12 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     }
   });
 
-  const displayedDocuments = activeTab === "전체" ? sortedDocuments : sortedDocuments.filter((d) => d.category === activeTab);
+  const displayedDocuments = sortedDocuments;
 
+  // ── 탭 변경: state만 업데이트, useEffect가 fetch 담당 ──
   const handleTabChange = (value: string) => {
     setActiveTab(value);
     setPage(1);
-    if (page === 1) fetchDocuments(1);
   };
 
   const handleSortChange = async (value: "latest" | "oldest" | "name-asc" | "name-desc") => {
@@ -260,7 +313,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    
+
     // 백엔드에도 취소 요청
     if (currentTaskId) {
       try {
@@ -273,7 +326,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
         console.error("백엔드 취소 요청 실패:", error);
       }
     }
-    
+
     resetUploadState();
     toast.info("업로드가 취소되었습니다.");
   };
@@ -328,7 +381,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
           if (line.startsWith("data: ")) {
             try {
               const data = JSON.parse(line.slice(6));
-              
+
               // ✅ 취소된 경우 처리
               if (data.stage === "cancelled") {
                 setUploadStatus("error");
@@ -337,7 +390,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
                 setTimeout(() => resetUploadState(), 2000);
                 return;
               }
-              
+
               setUploadProgress(data.progress);
               setUploadMessage(data.message);
 
@@ -559,11 +612,11 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
           <Progress value={uploadProgress} className="h-2" />
         </div>
         {uploadMessage && <p className="text-sm text-slate-500">{uploadMessage}</p>}
-        
+
         {(uploadStatus === "uploading" || uploadStatus === "analyzing") && (
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={cancelUpload}
             className="w-full mt-2 border-red-300 text-red-600 hover:bg-red-50"
           >
@@ -694,7 +747,14 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
 
         <div className="slide-in-bottom stagger-2">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-blue-900 font-semibold">내 문서 ({total}개)</h2>
+            <h2 className="text-blue-900 font-semibold">
+              내 문서 ({total}개)
+              {totalPages > 1 && (
+                <span className="text-sm font-normal text-slate-500 ml-2">
+                  — {page}페이지 / {totalPages}페이지
+                </span>
+              )}
+            </h2>
             {displayedDocuments.length > 0 && (
               <div className="flex items-center gap-2">
                 <Checkbox checked={selectedIds.length === displayedDocuments.length && displayedDocuments.length > 0} onCheckedChange={(checked) => setSelectedIds(checked ? displayedDocuments.map((d) => d.id) : [])} />
@@ -702,6 +762,27 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
               </div>
             )}
           </div>
+
+          {/* 탭 (카테고리 필터 역할, 페이징은 백엔드 담당) */}
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+            <TabsList
+              className="grid w-full mb-6 bg-gradient-to-r from-blue-900/10 to-indigo-900/10 border border-blue-900/20 rounded-xl p-[3px]"
+              style={{ gridTemplateColumns: `repeat(${categories.length}, 1fr)` }}
+            >
+              {categories.map((cat) => (
+                <TabsTrigger
+                  key={cat}
+                  value={cat}
+                  className="data-[state=active]:bg-white data-[state=active]:shadow-md rounded-lg transition-all"
+                >
+                  {cat}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            {categories.map((category) => (
+              <TabsContent key={category} value={category} />
+            ))}
+          </Tabs>
 
           {isLoadingDocs ? (
             <Card className="shadow-lg border-blue-900/10 bg-white/90 backdrop-blur">
@@ -718,7 +799,12 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
               </CardContent>
             </Card>
           ) : displayedDocuments.length === 0 ? (
-            <Card><CardContent className="py-12 text-center"><FileText className="w-12 h-12 mx-auto mb-4 opacity-50" /><p>문서가 없습니다</p></CardContent></Card>
+            <Card className="shadow-lg border-blue-900/10 bg-white/90 backdrop-blur">
+              <CardContent className="py-12 text-center text-slate-600">
+                <FileText className="w-12 h-12 mx-auto mb-4 opacity-50 text-blue-900" />
+                <p>{searchQuery ? "검색 결과가 없습니다" : `아직 ${activeTab === "전체" ? "" : activeTab + " "}문서가 없습니다`}</p>
+              </CardContent>
+            </Card>
           ) : (
             <div className="grid gap-4">{displayedDocuments.map(renderDocCard)}</div>
           )}
