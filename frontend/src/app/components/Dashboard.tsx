@@ -112,9 +112,11 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
   const [sortBy, setSortBy] = useState<"latest" | "oldest" | "name-asc" | "name-desc">("latest");
   const [activeTab, setActiveTab] = useState("전체");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null); // ✅ 백엔드 취소용 task_id
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchDocuments = async (targetPage: number = 1) => {
     setIsLoadingDocs(true);
@@ -252,9 +254,38 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     return true;
   };
 
+  // ✅ 업로드 취소 함수 (프론트 + 백엔드 모두 취소)
+  const cancelUpload = async () => {
+    // 프론트 요청 취소
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // 백엔드에도 취소 요청
+    if (currentTaskId) {
+      try {
+        await fetch(`/api/upload/cancel/${currentTaskId}`, {
+          method: "POST",
+          credentials: "include",
+        });
+        console.log("✅ 백엔드 취소 요청 완료");
+      } catch (error) {
+        console.error("백엔드 취소 요청 실패:", error);
+      }
+    }
+    
+    resetUploadState();
+    toast.info("업로드가 취소되었습니다.");
+  };
+
+  // ── 업로드 시작 (SSE 방식 + 취소 가능 + 백엔드 취소 연동) ─────────────────
   const startUpload = async () => {
     console.log("🚀 startUpload 실행됨!!!");
     if (!uploadedFile) return;
+
+    // 새로운 AbortController 생성
+    abortControllerRef.current = new AbortController();
+    setCurrentTaskId(null);
 
     setUploading(true);
     setUploadProgress(0);
@@ -269,7 +300,15 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
         method: "POST",
         body: formData,
         credentials: "include",
+        signal: abortControllerRef.current.signal,
       });
+
+      // ✅ 응답 헤더에서 task_id 추출
+      const taskId = response.headers.get("X-Task-Id");
+      if (taskId) {
+        setCurrentTaskId(taskId);
+        console.log("✅ Task ID:", taskId);
+      }
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
@@ -289,6 +328,16 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
           if (line.startsWith("data: ")) {
             try {
               const data = JSON.parse(line.slice(6));
+              
+              // ✅ 취소된 경우 처리
+              if (data.stage === "cancelled") {
+                setUploadStatus("error");
+                setUploadMessage("❌ 분석이 취소되었습니다.");
+                toast.error("분석이 취소되었습니다.");
+                setTimeout(() => resetUploadState(), 2000);
+                return;
+              }
+              
               setUploadProgress(data.progress);
               setUploadMessage(data.message);
 
@@ -327,14 +376,26 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
           }
         }
       }
-    } catch (error) {
-      console.error("업로드 실패:", error);
-      setUploadStatus("error");
-      setUploadMessage("❌ 업로드 실패. 서버를 확인하세요.");
-      toast.error("업로드 실패");
-      setTimeout(resetUploadState, 3000);
+    } catch (error: any) {
+      if (error.name === "AbortError") {
+        console.log("✅ 업로드 취소됨");
+        setUploadStatus("error");
+        setUploadMessage("❌ 업로드가 취소되었습니다.");
+      } else {
+        console.error("업로드 실패:", error);
+        setUploadStatus("error");
+        setUploadMessage("❌ 업로드 실패. 서버를 확인하세요.");
+        toast.error("업로드 실패");
+      }
+      setTimeout(() => {
+        if (uploadStatus !== "complete") {
+          resetUploadState();
+        }
+      }, 2000);
     } finally {
       setUploading(false);
+      abortControllerRef.current = null;
+      setCurrentTaskId(null);
     }
   };
 
@@ -344,6 +405,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     setUploadStatus("idle");
     setUploadedFile(null);
     setUploadMessage("");
+    setCurrentTaskId(null);
     if (progressIntervalRef.current) {
       clearInterval(progressIntervalRef.current);
       progressIntervalRef.current = null;
@@ -497,6 +559,18 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
           <Progress value={uploadProgress} className="h-2" />
         </div>
         {uploadMessage && <p className="text-sm text-slate-500">{uploadMessage}</p>}
+        
+        {(uploadStatus === "uploading" || uploadStatus === "analyzing") && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={cancelUpload}
+            className="w-full mt-2 border-red-300 text-red-600 hover:bg-red-50"
+          >
+            <XCircle className="w-4 h-4 mr-2" />
+            분석 취소
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
