@@ -9,7 +9,7 @@ from app.db.database import get_db
 from app.core.config import settings
 from app.services.auth_service import get_user
 from app.services.document_service import document_service
-from app.db.document import update_document, delete_document, sort_document, search_document 
+from app.db.document import update_document, update_delete_document, sort_document, search_document 
 from app.schemas.document import DocumentUpdate
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -32,35 +32,6 @@ def get_current_user_id(
     except JWTError:
         raise HTTPException(status_code=401, detail="토큰 검증에 실패했습니다.")
 
-
-@router.post("/upload")
-async def upload_document(
-    file: UploadFile = File(...),
-    title: Optional[str] = Form(default=None),
-    db: Session = Depends(get_db),
-    owner_id: int = Depends(get_current_user_id)
-):
-    if not title:
-        title = file.filename.rsplit(".", 1)[0]
-    upload_dir = "uploads"
-    os.makedirs(upload_dir, exist_ok=True)
-    file_path = os.path.join(upload_dir, file.filename)
-
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    
-    try: 
-        document = document_service.process_document(
-            db=db, 
-            file_path=file_path,
-            owner_id=owner_id,
-            title=title
-        )
-        return {"message": "업로드 성공", "document_id": document.id}
-    
-    finally:
-        if os.path.exists(file_path):
-            os.remove(file_path)
 
 
 # ✅ 페이징 처리 추가
@@ -248,7 +219,7 @@ def get_document(
     db: Session = Depends(get_db),
     owner_id: int = Depends(get_current_user_id)
 ):
-    from app.db.models import Document, Summary
+    from app.db.models import Document
     document = db.query(Document).filter(
         Document.id == document_id,
         Document.owner_id == owner_id,
@@ -258,18 +229,13 @@ def get_document(
     if not document:
         raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
 
-    summary = db.query(Summary).filter(
-        Summary.document_id == document_id,
-        Summary.is_deleted == False
-    ).first()
-
     return {
         "id": document.id,
         "title": document.title,
         "content": document.content,
         "category": document.category,
         "created_at": document.created_at,
-        "summary": summary.content if summary else None
+        "summary": document.summary
     }
 
 
@@ -279,21 +245,11 @@ async def modify_document(
     document_data: DocumentUpdate,
     db: Session = Depends(get_db),
 ):
-    from app.db.models import Summary
+    from app.db.models import Document
 
     document = update_document(db, document_id, document_data)
     if not document:
         raise HTTPException(status_code=404, detail="수정에 실패하였습니다.")
-
-    if document_data.summary is not None:
-        summary = db.query(Summary).filter(
-            Summary.document_id == document_id,
-            Summary.is_deleted == False
-        ).first()
-        if summary:
-            summary.content = document_data.summary
-            db.commit()
-
     return document
 
 
@@ -302,7 +258,7 @@ async def delete_document_route(
     document_id: int,
     db: Session = Depends(get_db),
 ):
-    document = delete_document(db, document_id)
+    document = update_delete_document(db, document_id)
     if not document:
         raise HTTPException(status_code=404, detail="삭제에 실패하였습니다.")
 

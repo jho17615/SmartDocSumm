@@ -30,22 +30,12 @@ class Document(Base):
     category = Column(String(50), default="기타")
     title = Column(String(500), nullable=False)
     content = Column(Text, nullable= False) 
+    summary = Column(Text, nullable=True)
     is_deleted = Column(Boolean, default=False)
     created_at = Column(DateTime, default=get_now)
     updated_at = Column(DateTime, default=get_now, onupdate=get_now)
 
     owner = relationship("User", back_populates="documents")
-    summaries = relationship("Summary", back_populates="document")
 
 
-class Summary(Base):
-    __tablename__ = "summaries"
-    id = Column(Integer, primary_key=True, index=True)
-    document_id = Column(Integer, ForeignKey("documents.id"))
-    content = Column(Text, nullable=False)
-    is_deleted = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=get_now)
-    updated_at = Column(DateTime, default=get_now, onupdate=get_now)
-
-    document = relationship("Document", back_populates="summaries")
 

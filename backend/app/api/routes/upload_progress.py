@@ -20,6 +20,19 @@ router = APIRouter(prefix="/upload", tags=["upload"])
 # ✅ 취소 플래그 저장소
 cancel_flags: Dict[str, bool] = {}
 
+SUPPORTED_EXTENSIONS = [".pdf", ".doc", ".docx", ".hwp", ".ppt", ".pptx"]
+
+def make_event(stage: str, progress: int, message: str, **kwargs) -> str:
+    """SSE 이벤트 생성 헬퍼"""
+    data = {"stage": stage, "progress": progress, "message": message, **kwargs}
+    return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+def make_cancelled_event() -> str:
+    return make_event("cancelled", 0, "❌ 분석이 취소되었습니다.")
+
+def make_error_event(message: str) -> str:
+    return make_event("error", 0, f"❌ {message}")
+
 @router.post("/cancel/{task_id}")
 async def cancel_upload(task_id: str):
     """진행 중인 업로드 작업 취소 요청"""
@@ -38,194 +51,101 @@ async def upload_with_progress(
     task_id = str(uuid.uuid4())
     
     async def event_generator():
-        
-        def show_progress(percent: int, message: str):
-            bar_length = 30
-            filled = int(bar_length * percent // 100)
-            bar = "█" * filled + "░" * (bar_length - filled)
-            print(f"[{bar}] {percent:3d}% - {message}")
-        
-        # ✅ 취소 확인 함수
-        def check_cancelled():
-            if cancel_flags.get(task_id, False):
-                print(f"⚠️ 작업 {task_id} 취소됨! 분석 중단")
-                return True
-            return False
-        
-        try:
-            # 1. 파일 읽기
-            if check_cancelled():
-                yield f"data: {json.dumps({'stage': 'cancelled', 'progress': 0, 'message': '❌ 분석이 취소되었습니다.'})}\n\n"
+        tmp_file_path = None
+
+        try: 
+            def is_cancelled() -> bool:
+                if cancel_flags.get(task_id, False):
+                    print(f"⚠️ 작업 {task_id} 취소됨! 분석 중단")
+                    return True
+                return False
+            
+            # 1. 파일 확장자 검증
+            ext = os.path.splitext(file.filename)[1].lower()
+            if ext not in SUPPORTED_EXTENSIONS:
+                yield make_error_event("지원하지 않는 파일 형식입니다.")
                 return
             
-            show_progress(10, "📁 파일 읽는 중...")
-            yield f"data: {json.dumps({'stage': 'save', 'progress': 10, 'message': '📁 파일 읽는 중...'})}\n\n"
-            await asyncio.sleep(0.1)
-
+            # 2. 파일 읽기
+            yield make_event("save", 10, "📁 파일 읽는 중...")
+            if is_cancelled():
+                yield make_cancelled_event()
+                return
+            
             file_bytes = await file.read()
-            
-            if check_cancelled():
-                yield f"data: {json.dumps({'stage': 'cancelled', 'progress': 0, 'message': '❌ 분석이 취소되었습니다.'})}\n\n"
+            yield make_event("save", 30, "✅ 파일 읽기 완료")
+
+            # 3. 임시 파일 저장
+            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp_file:
+                tmp_file.write(file_bytes)
+                tmp_file_path = tmp_file.name
+
+            # 4. 텍스트 추출
+            yield make_event("extract", 35, "📄 텍스트 추출 중...")
+            if is_cancelled():
+                yield make_cancelled_event()
                 return
-
-            show_progress(30, "✅ 파일 읽기 완료")
-            yield f"data: {json.dumps({'stage': 'save', 'progress': 30, 'message': '✅ 파일 읽기 완료'})}\n\n"
-            await asyncio.sleep(0.1)
-
-            # 2. 텍스트 추출
-            if check_cancelled():
-                yield f"data: {json.dumps({'stage': 'cancelled', 'progress': 0, 'message': '❌ 분석이 취소되었습니다.'})}\n\n"
-                return
-            
-            show_progress(35, "📄 텍스트 추출 중...")
-            yield f"data: {json.dumps({'stage': 'extract', 'progress': 35, 'message': '📄 텍스트 추출 중...'})}\n\n"
-
-            content = ""
-            tmp_file_path = None
             
             try:
-                if file.filename.endswith(".pdf"):
-                    from app.services.pdf_service import pdf_service
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-                        tmp_file.write(file_bytes)
-                        tmp_file_path = tmp_file.name
-                    content = pdf_service.extract_text_ocr(tmp_file_path)
-                    
-                    if check_cancelled():
-                        yield f"data: {json.dumps({'stage': 'cancelled', 'progress': 0, 'message': '❌ 분석이 취소되었습니다.'})}\n\n"
-                        return
-                        
-                    show_progress(50, f"📄 PDF 텍스트 추출 완료 ({len(content)}자)")
-                    yield f"data: {json.dumps({'stage': 'extract', 'progress': 50, 'message': f'📄 PDF 텍스트 추출 완료'})}\n\n"
-                    
-                elif file.filename.endswith((".doc", ".docx")):
-                    from app.services.docx_service import docx_service
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp_file:
-                        tmp_file.write(file_bytes)
-                        tmp_file_path = tmp_file.name
-                    content = docx_service.extract_text(tmp_file_path)
-                    
-                    if check_cancelled():
-                        yield f"data: {json.dumps({'stage': 'cancelled', 'progress': 0, 'message': '❌ 분석이 취소되었습니다.'})}\n\n"
-                        return
-                        
-                    show_progress(50, f"📝 Word 텍스트 추출 완료 ({len(content)}자)")
-                    yield f"data: {json.dumps({'stage': 'extract', 'progress': 50, 'message': f'📝 Word 텍스트 추출 완료'})}\n\n"
-                    
-                elif file.filename.endswith(".hwp"):
-                    from app.services.hwp_service import extract_text_from_hwp
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".hwp") as tmp_file:
-                        tmp_file.write(file_bytes)
-                        tmp_file_path = tmp_file.name
-                    content = extract_text_from_hwp(tmp_file_path)
-
-                    if check_cancelled():
-                        yield f"data: {json.dumps({'stage': 'cancelled', 'progress': 0, 'message': '❌ 분석이 취소되었습니다.'})}\n\n"
-                        return
-
-                    show_progress(50, f"📄 HWP 텍스트 추출 완료 ({len(content)}자)")
-                    yield f"data: {json.dumps({'stage': 'extract', 'progress': 50, 'message': f'📄 HWP 텍스트 추출 완료'})}\n\n"
-
-                elif file.filename.endswith((".pptx", ".ppt")):
-                    from app.services.pptx_service import pptx_service
-                    suffix = ".pptx" if file.filename.endswith(".pptx") else ".ppt"
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
-                        tmp_file.write(file_bytes)
-                        tmp_file_path = tmp_file.name
-                    content = pptx_service.extract_text(tmp_file_path)
-
-                    if check_cancelled():
-                        yield f"data: {json.dumps({'stage': 'cancelled', 'progress': 0, 'message': '❌ 분석이 취소되었습니다.'})}\n\n"
-                        return
-
-                    show_progress(50, f"📊 PPT 텍스트 추출 완료 ({len(content)}자)")
-                    yield f"data: {json.dumps({'stage': 'extract', 'progress': 50, 'message': f'📊 PPT 텍스트 추출 완료'})}\n\n"
-
-                else:
-                    raise ValueError("지원하지 않는 파일 형식입니다")
-                    
-            finally:
-                if tmp_file_path and os.path.exists(tmp_file_path):
-                    try:
-                        os.unlink(tmp_file_path)
-                    except:
-                        pass
-
-            await asyncio.sleep(0.1)
-
-            # 3. 카테고리 분류
-            if check_cancelled():
-                yield f"data: {json.dumps({'stage': 'cancelled', 'progress': 0, 'message': '❌ 분석이 취소되었습니다.'})}\n\n"
+                content = document_service.extract_content(tmp_file_path)
+            except ValueError as e:
+                yield make_error_event(str(e))
                 return
             
-            show_progress(55, "🏷️ 카테고리 분류 중... (AI)")
-            yield f"data: {json.dumps({'stage': 'classify', 'progress': 55, 'message': '🏷️ 카테고리 분류 중... (AI)'})}\n\n"
-            await asyncio.sleep(0.5)
+            if not content or len(content.strip()) == 0:
+                yield make_error_event("문서에서 텍스트를 추출할 수 없습니다.")
+                return
             
+            yield make_event("extract", 50, f"📄 텍스트 추출 완료 ({len(content)}자)")
+
+            # 5. 카테고리 분류
+            if is_cancelled():
+                yield make_cancelled_event()
+                return  
+            yield make_event("classify", 55, "🏷️ 카테고리 분류 중... (AI)")
             category = document_service._classify_category(content, title = tmp_file_path or file.filename)  # 파일명도 같이 넘겨서 분류 정확도 향상
-            
-            if check_cancelled():
-                yield f"data: {json.dumps({'stage': 'cancelled', 'progress': 0, 'message': '❌ 분석이 취소되었습니다.'})}\n\n"
-                return
+            yield make_event("classify", 65, f"✅ 카테고리: {category}")
 
-            show_progress(65, f"✅ 카테고리: {category}")
-            yield f"data: {json.dumps({'stage': 'classify', 'progress': 65, 'message': f'✅ 카테고리: {category}'})}\n\n"
-            await asyncio.sleep(0.1)
-
-            # 4. 요약 생성
-            if check_cancelled():
-                yield f"data: {json.dumps({'stage': 'cancelled', 'progress': 0, 'message': '❌ 분석이 취소되었습니다.'})}\n\n"
+            # 6. 요약 생성
+            if is_cancelled():
+                yield make_cancelled_event()
                 return
             
-            show_progress(70, "🤖 AI 요약 생성 중...")
-            yield f"data: {json.dumps({'stage': 'summarize', 'progress': 70, 'message': '🤖 AI 요약 생성 중...'})}\n\n"
+            yield make_event("summarize", 70, "🤖 AI 요약 생성 중...")
+            summary = document_service.create_summary(content, category)
 
-            from app.services.summary_service import summary_service
-            summary = summary_service.summarize(content, category=category)
+            if is_cancelled():
+                yield make_cancelled_event()
+                return  
             
-            if check_cancelled():
-                yield f"data: {json.dumps({'stage': 'cancelled', 'progress': 0, 'message': '❌ 분석이 취소되었습니다.'})}\n\n"
-                return
+            yield make_event("summarize", 90, "✅ AI 요약 완료")
 
-            show_progress(90, "✅ AI 요약 완료")
-            yield f"data: {json.dumps({'stage': 'summarize', 'progress': 90, 'message': '✅ AI 요약 완료'})}\n\n"
-            await asyncio.sleep(0.1)
+            # 7. DB 저장
+            yield make_event("save_db", 93, "💾 데이터베이스 저장 중...")
+            document = document_service.save_to_db(db, owner_id, title or file.filename, content, summary, category)
+        
+            # 8. 완료
+            yield make_event("done", 100, "🎉 분석 완료!", document_id=document.id)
 
-            # 5. DB 저장
-            if check_cancelled():
-                yield f"data: {json.dumps({'stage': 'cancelled', 'progress': 0, 'message': '❌ 분석이 취소되었습니다.'})}\n\n"
-                return
-            
-            show_progress(93, "💾 데이터베이스 저장 중...")
-            yield f"data: {json.dumps({'stage': 'save_db', 'progress': 93, 'message': '💾 데이터베이스 저장 중...'})}\n\n"
-            await asyncio.sleep(0.5)
+        except Exception as e:
+            print(f"업로드 처리 중 오류 발생: {e}")
+            yield make_error_event("업로드 처리 중 오류가 발생했습니다.")
+            try:                      
+                db.rollback()
+            except:
+                pass
 
-            from app.db.models import Document, Summary
-            document = Document(
-                owner_id=owner_id,
-                title=title or file.filename,
-                category=category,
-                content=content
-            )
-            db.add(document)
-            db.flush()
-
-            summary_obj = Summary(
-                document_id=document.id,
-                content=summary
-            )
-            db.add(summary_obj)
-            db.commit()
-            db.refresh(document)
-
-            show_progress(100, "🎉 분석 완료!")
-            print()
-            yield f"data: {json.dumps({'stage': 'done', 'progress': 100, 'message': '🎉 분석 완료!', 'document_id': document.id})}\n\n"
-            
         finally:
-            # ✅ 작업 완료/취소 후 플래그 정리
+            # ✅ 임시 파일 정리
+            if tmp_file_path and os.path.exists(tmp_file_path):
+                try:
+                    os.unlink(tmp_file_path)
+                except:
+                    pass
+            
+            #취소 플래그 정리
             cancel_flags.pop(task_id, None)
-    
+            
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
@@ -236,3 +156,4 @@ async def upload_with_progress(
             "X-Task-Id": task_id,  # 프론트에 task_id 전달
         }
     )
+    

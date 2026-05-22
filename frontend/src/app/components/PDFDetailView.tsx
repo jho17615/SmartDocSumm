@@ -54,7 +54,6 @@ interface PDFDetailViewProps {
   document: PDFDocument;
   onBack: () => void;
   onDelete: (id: string) => void;
-  onUpdate: (document: PDFDocument) => void;
 }
 
 const categoryIcons: Record<string, any> = {
@@ -79,7 +78,7 @@ const categoryColors: Record<string, string> = {
 
 const categories = ["법안", "발표자료", "교육자료", "기술문서", "뉴스/기사", "일반문서", "기타"];
 
-export function PDFDetailView({ document, onBack, onDelete, onUpdate }: PDFDetailViewProps) {
+export function PDFDetailView({ document, onBack, onDelete }: PDFDetailViewProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [editedDoc, setEditedDoc] = useState(document);
@@ -115,10 +114,7 @@ export function PDFDetailView({ document, onBack, onDelete, onUpdate }: PDFDetai
         editedDoc.fileName,
         editedDoc.category
       );
-      const updatedDoc: PDFDocument = {
-        ...editedDoc,
-      };
-      onUpdate(updatedDoc);
+
       setIsEditing(false);
       toast.success("문서가 수정되었습니다.");
     } catch (error) {
@@ -281,7 +277,7 @@ export function PDFDetailView({ document, onBack, onDelete, onUpdate }: PDFDetai
           </CardHeader>
           <CardContent>
             {!isEditing ? (
-              <p className="leading-relaxed whitespace-pre-wrap">{document.summary}</p>
+              <p className="leading-relaxed whitespace-pre-wrap">{editedDoc.summary}</p>
             ) : (
               <div>
                 <Label htmlFor="summary" className="text-blue-900">요약 내용</Label>
