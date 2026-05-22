@@ -1,7 +1,6 @@
 from sqlalchemy.orm import Session
 from app.db.models import Document
 from app.schemas.document import DocumentUpdate
-from app.db.summary import delete_summary
 
 def update_document(db: Session, id: int, document_data: DocumentUpdate):
     document = db.query(Document).filter(Document.id == id).first()
@@ -15,16 +14,16 @@ def update_document(db: Session, id: int, document_data: DocumentUpdate):
     db.refresh(document)
     return document
 
-def delete_document(db: Session, id: int):
-    document = delete_summary(db, id)
+def update_delete_document(db: Session, id: int):
     document = db.query(Document).filter(Document.id == id).first()
     if not document:
         return None
-    
 
-    db.delete(document)
+    document.is_deleted = True
     db.commit()
+    db.refresh(document)
     return document
+
 
 def sort_document(db: Session, owner_id: int, sort: str):
     base_query = db.query(Document).filter(
@@ -51,3 +50,28 @@ def search_document(db: Session, owner_id: int, query: str):
         Document.is_deleted == False,
         Document.title.ilike(f"%{query}%")
     )
+
+# summary 필드 추가 함수
+def update_document_summary(db: Session, document_id: int, summary_content: str):
+    document = db.query(Document).filter(Document.id == document_id).first()
+    if not document:
+        return None
+    
+    document.summary = summary_content
+    db.commit()
+    db.refresh(document)
+    return document
+
+
+# document 저장 함수
+def insert_document(db: Session, owner_id: int, title: str, content: str, category: str):
+    document = Document(
+        owner_id=owner_id,
+        title=title,
+        content=content,
+        category=category
+    )
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+    return document

@@ -513,11 +513,6 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     }
   };
 
-  const handleUpdateDocument = (updatedDoc: PDFDocument) => {
-    setDocuments((prev) => prev.map((doc) => (doc.id === updatedDoc.id ? updatedDoc : doc)));
-    toast.success("문서가 수정되었습니다");
-    setSelectedDocument(null);
-  };
 
   const handleDeleteSelected = async () => {
     if (selectedIds.length === 0) { toast.error("삭제할 문서를 선택해주세요"); return; }
@@ -547,7 +542,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
         document={selectedDocument}
         onBack={() => setSelectedDocument(null)}
         onDelete={handleDeleteDocument}
-        onUpdate={handleUpdateDocument}
+      
       />
     );
   }

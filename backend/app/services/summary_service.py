@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+from email.mime import text
 
 import ollama
 import re
@@ -6,8 +7,8 @@ import re
 class SummaryService:
     def __init__(self):
         self.model = "qwen2.5:3b-instruct-q4_K_S"
-        self.chunk_size = 10
-        self.max_chars = 3000
+        self.chunk_size = 5
+        self.max_chars = 2000
 
         self.format_guide = {
             "법안":     "• bullet point 3~5개로 핵심 조항을 정리해줘",
@@ -53,7 +54,7 @@ class SummaryService:
             }],
             options={
                 "temperature": 0.05,
-                "num_predict": 200,
+                "num_predict": 150,
                 "top_k": 20,
                 "top_p": 0.9
             }
@@ -61,17 +62,22 @@ class SummaryService:
         return response['message']['content'].strip()
 
     def summarize(self, text: str, category: str = None) -> str:
-        chunks = self._chunk_text(text)
-        print(f"청크 수: {len(chunks)}개")
+        
 
-
-        with ThreadPoolExecutor(max_workers =3) as executor:
-            chunk_summaries = list(executor.map(self._summarize_chunk, chunks))
-   
-        if len(chunk_summaries) == 1:
-            combined = chunk_summaries[0]
+        if len(text) < 500:
+            combined = text
         else:
-            combined = "\n".join(chunk_summaries)
+            chunks = self._chunk_text(text)
+            print(f"청크 수: {len(chunks)}개")
+
+
+            with ThreadPoolExecutor(max_workers =3) as executor:
+                chunk_summaries = list(executor.map(self._summarize_chunk, chunks))
+    
+            if len(chunk_summaries) == 1:
+                combined = chunk_summaries[0]
+            else:
+                combined = "\n".join(chunk_summaries)
 
         combined = combined[:2000]  # 최종 요약 입력 길이 제한 추가
 
