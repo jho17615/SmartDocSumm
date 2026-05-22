@@ -516,7 +516,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
 
   const handleDeleteSelected = async () => {
     if (selectedIds.length === 0) { toast.error("삭제할 문서를 선택해주세요"); return; }
-   
+    if (!confirm(`선택한 ${selectedIds.length}개의 문서를 삭제하시겠습니까?`)) return;
 
     const results = await Promise.allSettled(selectedIds.map((id) => documentdeleteAPI(Number(id))));
     const succeeded = selectedIds.filter((_, i) => results[i].status === "fulfilled");
