@@ -45,7 +45,7 @@ class PDFService:
                     image = self.preprocess_image(images[i])
                     result = self.reader.readtext(
                         np.array(image),
-                        paragraph=True,
+                        paragraph= False,
                         contrast_ths=0.1,
                         adjust_contrast=0.5,
                         text_threshold=0.7,
