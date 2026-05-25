@@ -253,7 +253,7 @@ async def modify_document(
     return document
 
 
-@router.delete("/delete/{document_id}", status_code=status.HTTP_200_OK)
+@router.put("/delete/{document_id}", status_code=status.HTTP_200_OK)
 async def delete_document_route(
     document_id: int,
     db: Session = Depends(get_db),
