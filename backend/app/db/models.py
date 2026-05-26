@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy.dialects.mysql import LONGTEXT  # MySQL LONGTEXT 사용
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone, timedelta
 from app.db.database import Base
@@ -29,13 +30,10 @@ class Document(Base):
     owner_id = Column(Integer, ForeignKey("users.id"))
     category = Column(String(50), default="기타")
     title = Column(String(500), nullable=False)
-    content = Column(Text, nullable= False) 
-    summary = Column(Text, nullable=True)
+    content = Column(LONGTEXT, nullable=False)  # 변경: Text → LONGTEXT
+    summary = Column(LONGTEXT, nullable=True)   # 변경: Text → LONGTEXT
     is_deleted = Column(Boolean, default=False)
     created_at = Column(DateTime, default=get_now)
     updated_at = Column(DateTime, default=get_now, onupdate=get_now)
 
     owner = relationship("User", back_populates="documents")
-
-
-
