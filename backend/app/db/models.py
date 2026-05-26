@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.dialects.mysql import LONGTEXT  # MySQL LONGTEXT 사용
+=======
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
+from sqlalchemy.dialects.mysql import LONGTEXT
+>>>>>>> 8f873595990ad3b8beca2ffd4a29e0709f8a6db7
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone, timedelta
 from app.db.database import Base
@@ -16,7 +21,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(50), nullable=False)
-    email = Column(String(20), unique=True, nullable=False)
+    email = Column(String(255), unique=True, nullable=False)
     password = Column(String(255), nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=get_now, nullable=False)
@@ -30,8 +35,13 @@ class Document(Base):
     owner_id = Column(Integer, ForeignKey("users.id"))
     category = Column(String(50), default="기타")
     title = Column(String(500), nullable=False)
+<<<<<<< HEAD
     content = Column(LONGTEXT, nullable=False)  # 변경: Text → LONGTEXT
     summary = Column(LONGTEXT, nullable=True)   # 변경: Text → LONGTEXT
+=======
+    content = Column(LONGTEXT, nullable= False) 
+    summary = Column(LONGTEXT, nullable=True)
+>>>>>>> 8f873595990ad3b8beca2ffd4a29e0709f8a6db7
     is_deleted = Column(Boolean, default=False)
     created_at = Column(DateTime, default=get_now)
     updated_at = Column(DateTime, default=get_now, onupdate=get_now)

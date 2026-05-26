@@ -40,7 +40,7 @@ export async function getDocumentDetailAPI(documentId: number) {
     return response.json();
 }
 
-export async function documentModifyAPI(documentId: number, content: string, title: string, category: string) {
+export async function updateDocumentAPI(documentId: number, content: string, title: string, category: string) {
     try {
         const response = await apiFetch(`/api/documents/modify/${documentId}`, {
             method: "PUT",
@@ -51,13 +51,13 @@ export async function documentModifyAPI(documentId: number, content: string, tit
         if (!response.ok) throw new Error("문서 수정 실패");
         return await response.json();
     } catch (error) {
-        console.error("documentModifyAPI 오류:", error);
+        console.error("updateDocumentAPI 오류:", error);
         throw error;
     }
 }
 
 
-export async function documentdeleteAPI(documentId: number) {
+export async function deleteDocumentAPI(documentId: number) {
     try {
         const response = await apiFetch(`/api/documents/delete/${documentId}`, {
             method: "DELETE",
@@ -67,12 +67,12 @@ export async function documentdeleteAPI(documentId: number) {
         if (!response.ok) throw new Error("문서 삭제 실패");
         return await response.json();
     } catch (error) {
-        console.error("documentdeleteAPI 오류:", error);
+        console.error("deleteDocumentAPI 오류:", error);
         throw error;
     }
 }
 
-export async function documentListSortAPI(sort: string): Promise<DocumentListResponse> {
+export async function getDocumentSortedListAPI(sort: string): Promise<DocumentListResponse> {
     try {
         const response = await apiFetch(`/api/documents/list/sort?sort=${sort}`, {
             method: "GET",
@@ -82,12 +82,12 @@ export async function documentListSortAPI(sort: string): Promise<DocumentListRes
         if (!response.ok) throw new Error("문서 목록을 불러오지 못했습니다.");
         return response.json();
     } catch (error) {
-        console.error("documentListSortAPI 오류:", error);
+        console.error("getDocumentSortedListAPI 오류:", error);
         throw error;
     }
 }
 
-export async function documentSearchAPI(query: string) {
+export async function searchDocumentsAPI(query: string) {
     try {
         const response = await apiFetch(`/api/documents/search?query=${query}&size=5`, {
             method: "GET",
@@ -97,7 +97,7 @@ export async function documentSearchAPI(query: string) {
         if (!response.ok) throw new Error("문서 검색 실패");
         return await response.json();
     } catch (error) {
-        console.error("documentSearchAPI 오류:", error);
+        console.error("searchDocumentsAPI 오류:", error);
         throw error;
     }
 }
@@ -113,7 +113,7 @@ export async function getCategoryCountsAPI(): Promise<Record<string, number>> {
     return response.json();
 }
 
-export async function documentCategoryAPI(
+export async function getDocumentsByCategoryAPI(
     category: string,
     page: number = 1,
     size: number = 5
@@ -130,7 +130,7 @@ export async function documentCategoryAPI(
         if (!response.ok) throw new Error("문서 카테고리 조회 실패");
         return await response.json();
     } catch (error) {
-        console.error("documentCategoryAPI 오류:", error);
+        console.error("getDocumentsByCategoryAPI 오류:", error);
         throw error;
     }
 }

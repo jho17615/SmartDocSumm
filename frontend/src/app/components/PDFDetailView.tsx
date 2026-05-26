@@ -38,7 +38,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import "../../styles/transitions.css";
-import { documentModifyAPI } from "../api/document";
+import { updateDocumentAPI } from "../api/document";
 
 interface PDFDocument {
   id: string;
@@ -108,7 +108,7 @@ export function PDFDetailView({ document, onBack, onDelete }: PDFDetailViewProps
 
   const handleSaveEdit = async () => {
     try {
-      await documentModifyAPI(
+      await updateDocumentAPI(
         Number(document.id),
         editedDoc.summary ?? "",
         editedDoc.fileName,
