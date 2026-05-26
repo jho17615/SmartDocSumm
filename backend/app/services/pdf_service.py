@@ -43,10 +43,6 @@ def _get_reader():
 
 # ── 이미지 전처리 ────────────────────────────────────────────────────────────
 def _preprocess_for_ocr(pil_image: Image.Image) -> np.ndarray:
-    """
-    OCR 인식률을 높이기 위한 이미지 전처리.
-    흑백 변환 → 업스케일(저해상도 한정) → CLAHE 대비 향상 → 적응형 이진화
-    """
     img = np.array(pil_image.convert("RGB"))
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
@@ -106,25 +102,10 @@ def _postprocess(text: str) -> str:
 
 # ── 서비스 클래스 ─────────────────────────────────────────────────────────────
 class PDFService:
-    """
-    PDF 텍스트 추출 서비스.
-    document_service.py 에서 아래와 같이 사용:
-        from app.services.pdf_service import pdf_service
-        content = pdf_service.extract_text_ocr(file_path)
-    """
 
     def extract_text_ocr(self, pdf_path: str) -> str:
-        """
-        PDF에서 텍스트를 최대한 추출한다.
 
-        페이지별 전략:
-          1) pdfplumber로 일반 텍스트 + 표 항상 추출
-          2) 페이지에 이미지가 존재하면 → 해당 페이지만 렌더링 후 OCR 추가 실행
-             (이미지 안의 표, 스캔 영역까지 커버)
-          3) 두 결과를 합쳐서 반환
-        """
         full_text_parts: list[str] = []
-
         try:
             with pdfplumber.open(pdf_path) as pdf:
                 for i, page in enumerate(pdf.pages):
