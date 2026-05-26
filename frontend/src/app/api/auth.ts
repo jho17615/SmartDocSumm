@@ -48,7 +48,7 @@ export async function getMeAPI() {
 
 
 
-export async function loginApi(data: LoginRequest): Promise<void> {
+export async function loginAPI(data: LoginRequest): Promise<void> {
     const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -71,7 +71,7 @@ export async function loginApi(data: LoginRequest): Promise<void> {
 
 }
 
-export async function logoutApi(): Promise<void> {
+export async function logoutAPI(): Promise<void> {
     await fetch("/api/auth/logout", {
         method: "POST",
         credentials: "include", // 쿠키 전송을 위해 필수

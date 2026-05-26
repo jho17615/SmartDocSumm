@@ -1,4 +1,4 @@
-from app.services.ppt_service import extract_text_from_pptx, format_slide_as_text
+from backend.app.services.pptx_core import extract_text_from_pptx, format_slide_as_text
 
 
 class PptxService:

@@ -37,14 +37,14 @@ import {
 import { PDFDetailView } from "./PDFDetailView";
 import { toast } from "sonner";
 import "../../styles/transitions.css";
-import { logoutApi } from "../api/auth";
+import { logoutAPI } from "../api/auth";
 import {
   getDocumentListAPI,
   getDocumentDetailAPI,
-  documentdeleteAPI,
-  documentListSortAPI,
-  documentSearchAPI,
-  documentCategoryAPI,
+  deleteDocumentAPI,
+  getDocumentSortedListAPI,
+  searchDocumentsAPI,
+  getDocumentsByCategoryAPI,
   getCategoryCountsAPI,
   DocumentListResponse,
 } from "../api/document";
@@ -168,7 +168,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     setSelectedIds([]);
     try {
       const [data] = await Promise.all([
-        documentCategoryAPI(category, targetPage, ITEMS_PER_PAGE),
+        getDocumentsByCategoryAPI(category, targetPage, ITEMS_PER_PAGE),
         fetchCategoryCounts(),
         new Promise<void>((resolve) => setTimeout(resolve, 300)),
       ]);
@@ -231,7 +231,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     setIsLoadingDocs(true);
     setSelectedIds([]);
     try {
-      const data: DocumentListResponse = await documentListSortAPI(value);
+      const data: DocumentListResponse = await getDocumentSortedListAPI(value);
       const mapped: PDFDocument[] = data.items.map((doc) => ({
         id: String(doc.id),
         fileName: doc.title,
@@ -269,7 +269,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
       setSelectedIds([]);
       try {
         const [data] = await Promise.all([
-          documentSearchAPI(searchQuery.trim()),
+          searchDocumentsAPI(searchQuery.trim()),
           new Promise<void>((resolve) => setTimeout(resolve, 100)),
         ]);
         const items: DocumentListResponse["items"] = Array.isArray(data)
@@ -502,7 +502,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
 
   const handleDeleteDocument = async (id: string) => {
     try {
-      await documentdeleteAPI(Number(id));
+      await deleteDocumentAPI(Number(id));
       toast.success("문서가 삭제되었습니다");
       setSelectedDocument(null);
       const nextPage = documents.length === 1 && page > 1 ? page - 1 : page;
@@ -518,7 +518,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
     if (selectedIds.length === 0) { toast.error("삭제할 문서를 선택해주세요"); return; }
     if (!confirm(`선택한 ${selectedIds.length}개의 문서를 삭제하시겠습니까?`)) return;
 
-    const results = await Promise.allSettled(selectedIds.map((id) => documentdeleteAPI(Number(id))));
+    const results = await Promise.allSettled(selectedIds.map((id) => deleteDocumentAPI(Number(id))));
     const succeeded = selectedIds.filter((_, i) => results[i].status === "fulfilled");
     const failCount = results.length - succeeded.length;
 
@@ -532,7 +532,7 @@ export function Dashboard({ userName, onLogout }: DashboardProps) {
   };
 
   const handleLogout = async () => {
-    try { await logoutApi(); } catch { }
+    try { await logoutAPI(); } catch { }
     onLogout();
   };
 
