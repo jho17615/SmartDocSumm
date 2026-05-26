@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { User, Mail, Lock } from "lucide-react";
 import "../../styles/auth.css";
-import { signupAPI, loginApi } from "../api/auth";
+import { signupAPI, loginAPI } from "../api/auth";
 
 interface AuthPageProps {
   onLogin: () => Promise<void>;
@@ -30,7 +30,7 @@ export function AuthPage({ onLogin, onSignup }: AuthPageProps) {
     setError("");
     setLoading(true);
     try {
-      await loginApi({ email: signInEmail, password: signInPassword });
+      await loginAPI({ email: signInEmail, password: signInPassword });
       await onLogin();
     } catch (err: any) {
       setError(err.message || "로그인에 실패했습니다.");
