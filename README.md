@@ -1,3 +1,27 @@
+
+
+
+<img width="960" height="540" alt="슬라이드1" src="https://github.com/user-attachments/assets/ea23af6b-66d7-439e-be3e-f2444621cd43" />
+<img width="960" height="540" alt="슬라이드2" src="https://github.com/user-attachments/assets/1f1f0b92-b265-4439-81f9-0790b10c595d" />
+<img width="960" height="540" alt="슬라이드3" src="https://github.com/user-attachments/assets/a93311b3-67c2-463d-8a44-2cd147decb26" />
+<img width="960" height="540" alt="슬라이드4" src="https://github.com/user-attachments/assets/837f984c-a7d6-4926-afa0-80bfcb6f7635" />
+<img width="960" height="540" alt="슬라이드5" src="https://github.com/user-attachments/assets/7fad6b7d-1fd8-46e2-9df0-00a7ef27a784" />
+<img width="960" height="540" alt="슬라이드6" src="https://github.com/user-attachments/assets/aa5e14db-554a-4b0a-8c3b-597dd08a9b15" />
+<img width="960" height="540" alt="슬라이드7" src="https://github.com/user-attachments/assets/ee0f88de-32ea-4261-a66e-ca20b34c12c4" />
+<img width="960" height="540" alt="슬라이드8" src="https://github.com/user-attachments/assets/8eb9e079-3d4c-4e3d-b9c0-f77a02182491" />
+<img width="960" height="540" alt="슬라이드9" src="https://github.com/user-attachments/assets/7cd893a0-1d1b-41a8-b98a-0436415c48a9" />
+<img width="960" height="540" alt="슬라이드10" src="https://github.com/user-attachments/assets/0df397ec-11b6-482f-86e6-868e4e6b8ef4" />
+<img width="960" height="540" alt="슬라이드11" src="https://github.com/user-attachments/assets/fe390a94-f74c-4118-8c56-df7772f7db62" />
+<img width="960" height="540" alt="슬라이드12" src="https://github.com/user-attachments/assets/200dea77-6a65-4137-912a-24d79d240e1c" />
+<img width="960" height="540" alt="슬라이드13" src="https://github.com/user-attachments/assets/43bc1e09-c28c-4a67-9f99-89369c41b0d3" />
+<img width="960" height="540" alt="슬라이드14" src="https://github.com/user-attachments/assets/ae409f40-5d05-4ac1-876d-046a2e0d3a41" />
+<img width="960" height="540" alt="슬라이드15" src="https://github.com/user-attachments/assets/7b8c1ee8-330b-40b1-a16c-63106c2aba00" />
+<img width="960" height="540" alt="슬라이드16" src="https://github.com/user-attachments/assets/a310bfab-dfb6-4668-9438-a386bbaac49b" />
+<img width="960" height="540" alt="슬라이드17" src="https://github.com/user-attachments/assets/15b5601f-c676-406c-8e64-40f86c372693" />
+<img width="960" height="540" alt="슬라이드18" src="https://github.com/user-attachments/assets/6b51262a-b7c6-435f-8422-616158e921c7" />
+<img width="960" height="540" alt="슬라이드19" src="https://github.com/user-attachments/assets/5ab0a7b1-a1a8-4976-a498-81acd7a8cba6" />
+<img width="960" height="540" alt="슬라이드20" src="https://github.com/user-attachments/assets/e32e221a-5e2d-40ff-8bfe-16a180b06e6d" />
+<img width="960" height="540" alt="슬라이드21" src="https://github.com/user-attachments/assets/a2a99a36-c112-4114-95a6-cb555384115d" />
 # 🤖 AI ENGINE — 멀티포맷 AI 문서 관리 플랫폼
 
 > PDF, DOCX, HWP, PPTX 등 다양한 포맷의 문서를 업로드하면 AI가 자동으로 텍스트를 추출하고 카테고리를 분류한 뒤 맞춤형 요약을 생성·저장하는 풀스택 웹 서비스
